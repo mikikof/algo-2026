@@ -17,332 +17,491 @@
 <style>
 /* ==========================================================================
    手元で解くための器。投影には使いません（だから暗い配色にしています）。
-   基準版（アルゴリズム図鑑）との違いは spec/00_設計.md の表。
+   ★ 芯は「半分が一気に消える」ことです。ここをいちばん大きく、いちばん強く見せます。
+   ★ スマホは一枚が前提。器は svh で決め、動きは transform と opacity だけで作ります
+     （レイアウトを動かす動きを入れると、一枚の合格線が崩れます）。
    ========================================================================== */
 :root{
-  --bg:#0A0C16; --bg2:#171243; --bg3:#0E1B33;
-  --ink:#ECEEF8; --dim:#99A1C0; --faint:#6A7295;
-  --line:rgba(255,255,255,.10); --line2:rgba(255,255,255,.18);
-  --glass:rgba(255,255,255,.055);
-  --violet:#A691F2; --violet-d:#6D53C8; --violet-g:rgba(166,145,242,.38);
-  --amber:#F4AE66; --amber-g:rgba(244,174,102,.40);
-  --green:#40DCA6; --green-g:rgba(64,220,166,.38);
-  --rose:#F07A8C;
-  --gray:#4E5674;
+  --bg:#07080F; --bg2:#2A1A7A; --bg3:#0B3358;
+  --ink:#F2F4FF; --dim:#9AA2C8; --faint:#646C92;
+  --line:rgba(255,255,255,.09); --line2:rgba(255,255,255,.17);
+  --glass:rgba(255,255,255,.05);
+
+  --violet:#B7A4FF; --violet-d:#6A4BD6; --violet-g:rgba(183,164,255,.42);
+  --amber:#FFBE73; --amber-g:rgba(255,190,115,.45);
+  --green:#3EE7AE; --green-g:rgba(62,231,174,.45);
+  --rose:#FF7E92; --rose-g:rgba(255,126,146,.40);
+  --gray:#39405C;
+
   --r:18px; --r2:13px;
-  --bar:calc(env(safe-area-inset-bottom,0px) + 12px);
+  --bar:calc(env(safe-area-inset-bottom,0px) + 10px);
+
+  /* 動きの型 */
+  --e-out:cubic-bezier(.22,1,.36,1);
+  --e-spring:cubic-bezier(.34,1.56,.64,1);
+  --e-in:cubic-bezier(.5,0,.9,.4);
+  --t-f:.16s; --t:.32s; --t-s:.54s;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0;height:100%}
 body{
-  background:var(--bg);
-  color:var(--ink);
+  background:var(--bg); color:var(--ink);
   font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP","Yu Gothic",sans-serif;
   font-size:15px; line-height:1.7; letter-spacing:.01em;
-  -webkit-font-smoothing:antialiased;
-  overscroll-behavior:none;
-}
-body::before{
-  content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
-  background:
-    radial-gradient(120% 70% at 18% -8%, var(--bg2) 0%, transparent 58%),
-    radial-gradient(110% 60% at 90% 4%, var(--bg3) 0%, transparent 52%),
-    linear-gradient(180deg,#0A0C16 0%,#080A12 100%);
+  -webkit-font-smoothing:antialiased; overscroll-behavior:none;
 }
 button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .tnum{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
 
-/* ---- 画面の骨 ---- */
+/* ---- 地。奥でゆっくり動く光と、粒と、周縁の落ち ---- */
+.bg{position:fixed;inset:0;z-index:-2;pointer-events:none;overflow:hidden;background:#07080F}
+.bg i{position:absolute;display:block;border-radius:50%;filter:blur(72px);opacity:.92}
+.bg i:nth-child(1){width:78vw;height:78vw;left:-24vw;top:-30vw;background:var(--bg2);
+  animation:drift1 26s ease-in-out infinite alternate}
+.bg i:nth-child(2){width:66vw;height:66vw;right:-22vw;top:-12vw;background:var(--bg3);
+  animation:drift2 31s ease-in-out infinite alternate}
+.bg i:nth-child(3){width:62vw;height:62vw;left:6vw;bottom:-30vw;background:#4A1D6B;opacity:.62;
+  animation:drift1 37s ease-in-out infinite alternate-reverse}
+@keyframes drift1{from{transform:translate3d(0,0,0) scale(1)}to{transform:translate3d(9vw,5vh,0) scale(1.14)}}
+@keyframes drift2{from{transform:translate3d(0,0,0) scale(1.08)}to{transform:translate3d(-8vw,7vh,0) scale(.94)}}
+.grain{position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.26;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E")}
+.vig{position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(125% 88% at 50% 40%,transparent 38%,rgba(3,4,10,.80) 100%)}
+
+/* ---- 画面 ---- */
 .screen{display:none;flex-direction:column}
-/* ★ スマホでは「一枚」が前提です（本人 2026-09-21）。スクロールさせて逃がしません。
-   器は **svh**（ブラウザの枠が出ている状態の高さ）で決めます。dvh や vh で組むと、
-   枠が出た瞬間に下がはみ出します。万一あふれたときだけスクロールに落ちます（届かないより良い）。 */
-.screen.on{display:flex;height:100vh;height:100svh;overflow-y:auto;overscroll-behavior:contain}
+/* ★ スマホは「一枚」が前提です（本人 2026-09-21）。器は svh（枠が出ている状態の高さ）で決めます。
+   万一あふれたときだけスクロールに落ちます（届かないより良い）。 */
+.screen.on{display:flex;height:100vh;height:100svh;overflow-y:auto;overscroll-behavior:contain;
+  animation:scr .42s var(--e-out) both}
+@keyframes scr{from{opacity:0;transform:translateY(10px) scale(.992)}to{opacity:1;transform:none}}
 .wrap{padding:0 16px;max-width:520px;margin:0 auto;width:100%}
 
 .top{
-  position:sticky;top:0;z-index:20;
-  display:flex;align-items:center;gap:10px;
+  position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:10px;
   padding:calc(env(safe-area-inset-top,0px) + 10px) 14px 10px;
-  background:rgba(10,12,22,.72);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  background:rgba(7,8,15,.62);backdrop-filter:blur(20px) saturate(140%);
+  -webkit-backdrop-filter:blur(20px) saturate(140%);
   border-bottom:1px solid var(--line);
 }
 .top .back{width:40px;height:40px;border-radius:50%;background:var(--glass);border:1px solid var(--line);
-  display:grid;place-items:center;flex:0 0 auto}
+  display:grid;place-items:center;flex:0 0 auto;transition:transform var(--t-f) var(--e-out)}
+.top .back:active{transform:scale(.9)}
 .top .back svg{width:16px;height:16px}
-.top h1{margin:0;font-size:15px;font-weight:650;letter-spacing:.02em;flex:1;min-width:0;
+.top h1{margin:0;font-size:15px;font-weight:650;letter-spacing:.03em;flex:1;min-width:0;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.top .step{font-size:12.5px;color:var(--dim);flex:0 0 auto}
+.top .step{font-size:12.5px;color:var(--dim);flex:0 0 auto;font-variant-numeric:tabular-nums}
 
 /* ---- 入口 ---- */
 .gate{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;
   padding:clamp(16px,3vh,34px) 16px calc(var(--bar) + clamp(12px,2.4vh,20px))}
-.mark{width:clamp(74px,13vh,104px);height:auto;margin:0 auto clamp(14px,2.8vh,24px);display:block}
-.gate h2{margin:0 0 6px;text-align:center;font-size:clamp(19px,3.2vh,23px);font-weight:700;letter-spacing:.02em}
+.mark{width:clamp(96px,17vh,132px);height:auto;margin:0 auto clamp(14px,2.8vh,24px);display:block;overflow:visible}
+.mark .bars .b{transform-origin:50% 100%;animation:rise .62s var(--e-spring) both}
+.mark .bars .b:nth-child(1){animation-delay:.05s}.mark .bars .b:nth-child(2){animation-delay:.11s}
+.mark .bars .b:nth-child(3){animation-delay:.17s}.mark .bars .b:nth-child(4){animation-delay:.23s}
+.mark .bars .b:nth-child(5){animation-delay:.29s}.mark .bars .b:nth-child(6){animation-delay:.35s}
+.mark .bars .b:nth-child(7){animation-delay:.41s}
+@keyframes rise{from{transform:scaleY(.05);opacity:0}to{transform:scaleY(1);opacity:1}}
+.mark .cut{transform-origin:0 50%;animation:cutin .55s var(--e-spring) .62s both}
+.mark .cut.gone{transform-origin:100% 50%;animation:cutout .55s var(--e-out) .62s both}
+@keyframes cutin{from{transform:scaleX(0);opacity:0}to{transform:scaleX(1);opacity:1}}
+@keyframes cutout{from{transform:scaleX(1);opacity:.8}to{transform:scaleX(.08);opacity:.5}}
+.gate h2{margin:0 0 6px;text-align:center;font-size:clamp(20px,3.4vh,25px);font-weight:750;letter-spacing:.03em}
 .gate .sub{margin:0 0 clamp(16px,3.4vh,30px);text-align:center;color:var(--dim);font-size:13.5px}
-.field{display:block;margin:0 0 8px;font-size:12.5px;color:var(--dim)}
+.field{display:block;margin:0 0 8px;font-size:12.5px;color:var(--dim);letter-spacing:.06em}
 input[type=text]{
   width:100%;padding:15px 16px;border-radius:var(--r2);
-  background:rgba(255,255,255,.06);border:1px solid var(--line2);color:var(--ink);
-  font-size:19px;letter-spacing:.16em;font-variant-numeric:tabular-nums;
-  text-transform:uppercase;outline:none;transition:border-color .18s,box-shadow .18s
+  background:rgba(255,255,255,.055);border:1px solid var(--line2);color:var(--ink);
+  font-size:20px;letter-spacing:.18em;font-variant-numeric:tabular-nums;
+  text-transform:uppercase;outline:none;transition:border-color var(--t),box-shadow var(--t),background var(--t)
 }
-input[type=text]:focus{border-color:var(--violet);box-shadow:0 0 0 4px var(--violet-g)}
+input[type=text]:focus{border-color:var(--violet);box-shadow:0 0 0 4px var(--violet-g);background:rgba(183,164,255,.07)}
 /* ★ text-transform はプレースホルダにも効きます。効かせると、まだ何も打っていないのに
    欄が「AAA26217」と見え、下の説明（例 aaa26217）とも食い違います */
-input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.55;letter-spacing:.10em}
+input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;letter-spacing:.12em}
 .hint{margin:9px 2px 0;font-size:12.5px;color:var(--faint);min-height:1.7em}
 .hint.ng{color:var(--rose)}
 
 /* ---- 大きなボタン ---- */
 .big{
-  display:block;width:100%;padding:16px;border-radius:var(--r2);
-  font-size:16px;font-weight:650;text-align:center;letter-spacing:.03em;
+  position:relative;display:block;width:100%;padding:16px;border-radius:var(--r2);overflow:hidden;
+  font-size:16px;font-weight:700;text-align:center;letter-spacing:.05em;
   background:linear-gradient(135deg,var(--violet) 0%,var(--violet-d) 100%);
-  color:#0B0A18;box-shadow:0 8px 24px -10px var(--violet-g);
-  transition:transform .12s,opacity .18s
+  color:#0A0718;box-shadow:0 10px 30px -12px var(--violet-g),inset 0 1px 0 rgba(255,255,255,.34);
+  transition:transform var(--t-f) var(--e-out),opacity var(--t),box-shadow var(--t)
 }
-.big:active{transform:scale(.985)}
-.big[disabled]{opacity:.34;box-shadow:none}
+.big::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.42) 48%,transparent 66%);
+  transform:translateX(-120%);animation:sheen 3.6s var(--e-out) 1.1s infinite}
+@keyframes sheen{0%{transform:translateX(-120%)}38%,100%{transform:translateX(120%)}}
+.big:active{transform:scale(.982)}
+.big[disabled]{opacity:.3;box-shadow:none}
+.big[disabled]::after{display:none}
 .ghost{background:var(--glass);border:1px solid var(--line2);color:var(--ink);box-shadow:none}
+.ghost::after{display:none}
 
 /* ---- 一覧 ---- */
 .list{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;
   padding:clamp(10px,2vh,18px) 16px calc(var(--bar) + clamp(10px,2vh,18px))}
 .lab-map{margin-top:clamp(13px,3vh,26px)}
-.lab-s{font-size:11px;letter-spacing:.16em;color:var(--faint);margin:0 2px clamp(6px,1.2vh,9px);
+.lab-s{font-size:11px;letter-spacing:.2em;color:var(--faint);margin:0 2px clamp(6px,1.2vh,9px);
   display:flex;align-items:center;gap:9px}
 .lab-s::after{content:"";flex:1;height:1px;background:var(--line)}
 
-/* いま解ける回。ここだけ大きく出します */
 .row{
-  display:flex;align-items:center;gap:13px;width:100%;text-align:left;
+  position:relative;display:flex;align-items:center;gap:13px;width:100%;text-align:left;overflow:hidden;
   padding:clamp(11px,2vh,15px) 14px;border-radius:var(--r);
-  background:rgba(166,145,242,.10);border:1px solid rgba(166,145,242,.42);
-  transition:transform .12s
+  background:linear-gradient(135deg,rgba(183,164,255,.15),rgba(106,75,214,.07));
+  border:1px solid rgba(183,164,255,.40);
+  box-shadow:0 12px 34px -20px var(--violet-g);
+  transition:transform var(--t-f) var(--e-out);
+  animation:pop-in .5s var(--e-spring) both
 }
+.row::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(105deg,transparent 34%,rgba(255,255,255,.16) 50%,transparent 64%);
+  transform:translateX(-120%);animation:sheen 5.2s var(--e-out) 1.4s infinite}
 .row:active{transform:scale(.99)}
+@keyframes pop-in{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:none}}
 .row .no{
-  flex:0 0 auto;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;
-  font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;
-  background:linear-gradient(135deg,var(--violet),var(--violet-d));color:#0B0A18
+  flex:0 0 auto;width:42px;height:42px;border-radius:13px;display:grid;place-items:center;
+  font-size:17px;font-weight:750;font-variant-numeric:tabular-nums;
+  background:linear-gradient(135deg,var(--violet),var(--violet-d));color:#0A0718;
+  box-shadow:0 6px 18px -8px var(--violet-g),inset 0 1px 0 rgba(255,255,255,.4)
 }
-.row.clear .no{background:linear-gradient(135deg,var(--green),#1FA07A);color:#04231A}
+.row.clear .no{background:linear-gradient(135deg,var(--green),#17A177);color:#04231A;
+  box-shadow:0 6px 18px -8px var(--green-g),inset 0 1px 0 rgba(255,255,255,.4)}
 .row .tx{flex:1;min-width:0}
 /* ★ span は inline なので、題が短いと難所が同じ行にくっつきます。block にします */
-.row .tt{display:block;font-size:15px;font-weight:650;letter-spacing:.01em}
-.row .ds{display:block;font-size:12px;color:var(--faint);margin-top:2px;
+.row .tt{display:block;font-size:15.5px;font-weight:700;letter-spacing:.02em}
+.row .ds{display:block;font-size:12px;color:var(--dim);margin-top:2px;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.row .go{flex:0 0 auto;font-size:12px;color:var(--violet)}
+.row .go{flex:0 0 auto;font-size:12px;color:var(--violet);font-weight:650}
 
-/* 15 回の地図。1 グループ 1 行に収め、回は番号の升で置きます */
 .map{display:flex;flex-direction:column;gap:clamp(3px,.8vh,7px);margin:0}
 .mrow{display:flex;align-items:center;gap:8px}
-.mrow .gname{flex:0 0 68px;font-size:11px;color:var(--faint);text-align:right;letter-spacing:.02em}
+.mrow .gname{flex:0 0 78px;white-space:nowrap;font-size:11px;color:var(--faint);
+  text-align:right;letter-spacing:.02em}
 .mrow .tiles{display:flex;gap:5px;flex-wrap:nowrap}
 .tile{
-  width:clamp(40px,6.2vh,46px);height:clamp(40px,6.2vh,46px);border-radius:11px;
-  display:grid;place-items:center;font-size:13px;font-weight:650;font-variant-numeric:tabular-nums;
-  background:rgba(255,255,255,.055);border:1px solid var(--line);color:var(--faint);
-  transition:transform .12s,border-color .18s
+  width:clamp(40px,6.2vh,46px);height:clamp(40px,6.2vh,46px);border-radius:12px;
+  display:grid;place-items:center;font-size:13.5px;font-weight:650;font-variant-numeric:tabular-nums;
+  background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--faint);
+  transition:transform var(--t-f) var(--e-spring),border-color var(--t),color var(--t);
+  animation:pop-in .42s var(--e-spring) both
 }
-.tile:active{transform:scale(.94)}
-.tile.ready{background:linear-gradient(135deg,var(--violet),var(--violet-d));color:#0B0A18;border-color:transparent}
-.tile.clear{background:linear-gradient(135deg,var(--green),#1FA07A);color:#04231A;border-color:transparent}
-.tile.sel{border-color:var(--violet);color:var(--ink)}
+.tile:active{transform:scale(.9)}
+.tile.ready{background:linear-gradient(135deg,var(--violet),var(--violet-d));color:#0A0718;
+  border-color:transparent;box-shadow:0 6px 18px -8px var(--violet-g);animation:pop-in .42s var(--e-spring) both,beat 2.6s ease-in-out 1s infinite}
+@keyframes beat{0%,100%{box-shadow:0 6px 18px -8px var(--violet-g)}50%{box-shadow:0 8px 26px -6px var(--violet-g)}}
+.tile.clear{background:linear-gradient(135deg,var(--green),#17A177);color:#04231A;border-color:transparent}
+.tile.sel{border-color:var(--violet);color:var(--ink);transform:translateY(-2px)}
 .caption{margin:clamp(8px,1.6vh,12px) 2px 0;min-height:2.6em;font-size:12.5px;color:var(--dim);line-height:1.6}
-.caption b{color:var(--ink);font-weight:650}
+.caption b{color:var(--ink);font-weight:700}
 
 /* ---- 演習 ---- */
-.play{flex:1;min-height:0;display:flex;flex-direction:column;padding:clamp(6px,1.4vh,12px) 16px 0}
+.play{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;padding:clamp(6px,1.4vh,12px) 16px 0}
 .quest{text-align:center;padding:clamp(4px,1.2vh,10px) 0 4px}
-.quest .lab{font-size:11.5px;letter-spacing:.16em;color:var(--faint)}
+.quest .lab{font-size:11px;letter-spacing:.2em;color:var(--faint)}
 .quest .big-num{
-  font-size:clamp(32px,5.6vh,46px);font-weight:750;line-height:1.1;letter-spacing:.01em;
+  font-size:clamp(34px,6vh,52px);font-weight:800;line-height:1.08;letter-spacing:.005em;
   font-variant-numeric:tabular-nums;
-  background:linear-gradient(135deg,#FFFFFF 10%,var(--violet) 95%);
+  background:linear-gradient(170deg,#FFFFFF 6%,var(--violet) 92%);
   -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 6px 22px var(--violet-g));
 }
+.quest .big-num.bump{animation:bump .5s var(--e-spring)}
+@keyframes bump{0%{transform:scale(1)}36%{transform:scale(1.16)}100%{transform:scale(1)}}
 .quest .cond{font-size:13px;color:var(--dim);margin-top:2px}
 
-.meters{display:flex;gap:8px;justify-content:center;margin:clamp(6px,1.4vh,12px) 0 4px}
+.meters{display:flex;gap:8px;justify-content:center;align-items:center;margin:clamp(5px,1vh,8px) 0 3px}
 .meter{
-  display:flex;align-items:baseline;gap:6px;padding:clamp(4px,.8vh,6px) 12px;border-radius:999px;
-  background:var(--glass);border:1px solid var(--line);font-size:12px;color:var(--dim)
+  display:flex;align-items:center;gap:8px;padding:clamp(5px,.9vh,7px) 13px;border-radius:999px;
+  background:var(--glass);border:1px solid var(--line);font-size:12px;color:var(--dim);
+  transition:border-color var(--t),background var(--t)
 }
-.meter b{font-size:15px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
-.meter.warn{border-color:rgba(244,174,102,.5);background:rgba(244,174,102,.12)}
+.meter b{font-size:15px;font-weight:750;color:var(--ink);font-variant-numeric:tabular-nums}
+.meter.warn{border-color:rgba(255,190,115,.55);background:rgba(255,190,115,.13);color:var(--amber)}
 .meter.warn b{color:var(--amber)}
+.meter.warn{animation:tense 1.5s ease-in-out infinite}
+@keyframes tense{0%,100%{box-shadow:0 0 0 0 rgba(255,190,115,0)}50%{box-shadow:0 0 0 5px rgba(255,190,115,.13)}}
+/* 手数は数字でなく粒で見せます。あと何手かが一目で分かります */
+.pips{display:flex;gap:4px;align-items:center}
+.pips i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.17);display:block;
+  transition:transform var(--t) var(--e-spring),background var(--t)}
+.pips i.used{background:var(--violet);transform:scale(1.28)}
+.meter.warn .pips i.used{background:var(--amber)}
+.pips i.last{background:var(--amber)}
 
-.board{margin:clamp(8px,1.8vh,16px) 0 0}
+/* ---- 盤 ---- */
+.board{position:relative;margin:clamp(6px,1.2vh,10px) 0 0}
+.board.shake{animation:shake .42s cubic-bezier(.36,.07,.19,.97)}
+@keyframes shake{10%,90%{transform:translateX(-2px)}20%,80%{transform:translateX(4px)}
+  30%,50%,70%{transform:translateX(-7px)}40%,60%{transform:translateX(7px)}}
 .cards{display:grid;grid-template-columns:repeat(8,1fr);gap:3px;margin:0 -8px}
-/* 8 枚を 1 列に置くので、1 枚の幅は 360px の端末でも 40px を割らないようにします */
+/* ★ 8 枚を 1 列に置くので、1 枚の幅は 360px の端末でも 40px を割らないようにします */
 .card{
-  position:relative;height:clamp(46px,8.2vh,66px);perspective:640px;padding:0;
-  transition:opacity .28s,transform .28s,filter .28s
+  position:relative;height:clamp(50px,9vh,72px);perspective:760px;padding:0;
+  transition:opacity var(--t-s) var(--e-out),filter var(--t-s) var(--e-out)
 }
-.inner{
-  position:absolute;inset:0;transform-style:preserve-3d;
-  transition:transform .46s cubic-bezier(.34,1.3,.5,1)
-}
+.inner{position:absolute;inset:0;transform-style:preserve-3d;
+  transition:transform .62s var(--e-spring)}
 .card.flip .inner{transform:rotateY(180deg)}
-.face{
-  position:absolute;inset:0;border-radius:10px;display:grid;place-items:center;
-  backface-visibility:hidden;-webkit-backface-visibility:hidden;overflow:hidden
-}
+.card:not([disabled]):active .inner{transform:translateY(3px) scale(.95)}
+.card.flip:not([disabled]):active .inner{transform:rotateY(180deg) translateY(3px) scale(.95)}
+.face{position:absolute;inset:0;border-radius:11px;display:grid;place-items:center;
+  backface-visibility:hidden;-webkit-backface-visibility:hidden;overflow:hidden}
 .face.b{
-  background:linear-gradient(160deg,rgba(166,145,242,.26),rgba(109,83,200,.12));
-  border:1px solid rgba(166,145,242,.34)
+  background:linear-gradient(158deg,rgba(183,164,255,.30),rgba(106,75,214,.13));
+  border:1px solid rgba(183,164,255,.38);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 8px 20px -14px rgba(0,0,0,.9)
 }
-.face.b::after{
-  content:"";position:absolute;inset:0;
-  background:repeating-linear-gradient(135deg,rgba(255,255,255,.08) 0 2px,transparent 2px 7px)
-}
+.face.b::before{content:"";position:absolute;inset:0;
+  background:repeating-linear-gradient(135deg,rgba(255,255,255,.09) 0 2px,transparent 2px 7px)}
+.face.b::after{content:"";position:absolute;inset:-40%;
+  background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.30) 50%,transparent 60%);
+  transform:translateX(-100%);animation:sheen 5s var(--e-out) infinite}
 .face.f{
   transform:rotateY(180deg);
-  background:linear-gradient(160deg,rgba(255,255,255,.14),rgba(255,255,255,.05));
-  border:1px solid var(--line2)
+  background:linear-gradient(158deg,rgba(255,255,255,.155),rgba(255,255,255,.045));
+  border:1px solid var(--line2);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.26),0 8px 20px -14px rgba(0,0,0,.9)
 }
-.face .n{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink)}
-.card.now .face.f{border-color:var(--amber);box-shadow:0 0 0 2px var(--amber-g),0 6px 18px -8px var(--amber-g)}
+.face .n{font-size:clamp(15px,2.6vh,19px);font-weight:750;font-variant-numeric:tabular-nums;color:var(--ink)}
+.card.live .face.b{border-color:rgba(183,164,255,.6);box-shadow:inset 0 1px 0 rgba(255,255,255,.26),0 0 0 1px rgba(183,164,255,.22),0 10px 26px -14px var(--violet-g)}
+.card.now .face.f{border-color:var(--amber);
+  box-shadow:0 0 0 2px var(--amber-g),0 12px 30px -12px var(--amber-g),inset 0 1px 0 rgba(255,255,255,.3)}
 .card.now .face.f .n{color:var(--amber)}
-.card.hit .face.f{border-color:var(--green);background:linear-gradient(160deg,rgba(64,220,166,.30),rgba(64,220,166,.10));
-  box-shadow:0 0 0 2px var(--green-g),0 8px 22px -8px var(--green-g)}
+.card.now{z-index:3;animation:lift .5s var(--e-spring)}
+@keyframes lift{0%{transform:none}40%{transform:translateY(-9px) scale(1.09)}100%{transform:none}}
+.card.hit .face.f{border-color:var(--green);
+  background:linear-gradient(158deg,rgba(62,231,174,.34),rgba(62,231,174,.12));
+  box-shadow:0 0 0 2px var(--green-g),0 14px 36px -10px var(--green-g)}
 .card.hit .face.f .n{color:#FFF}
-.card.out{opacity:.30;filter:saturate(.25)}
+.card.hit{z-index:4;animation:hitpop .62s var(--e-spring)}
+@keyframes hitpop{0%{transform:none}34%{transform:translateY(-12px) scale(1.18)}100%{transform:none}}
+.card.seen{opacity:.55}
+.card.seen .face.f{border-color:var(--line);box-shadow:none}
+.card.seen .face.f .n{color:var(--dim)}
+.card.out{opacity:.20;filter:saturate(.2) blur(.3px)}
 .card.out .face{border-style:dashed;border-color:var(--gray);box-shadow:none}
-.card.out .face.b{background:rgba(255,255,255,.03)}
-.card.pop{animation:pop .34s cubic-bezier(.3,1.5,.5,1)}
-@keyframes pop{0%{transform:translateY(0)}45%{transform:translateY(-7px)}100%{transform:translateY(0)}}
+.card.out .face.b{background:rgba(255,255,255,.025)}
+.card.out .face.b::after{display:none}
+/* ★ 捨てられる瞬間。ここが二分探索のいちばん大事なところなので、いちばん強く見せます */
+.card.dying{animation:die .56s var(--e-in) both;z-index:2}
+@keyframes die{
+  0%{transform:none;opacity:1}
+  26%{transform:translateY(-7px) rotate(var(--tilt,0deg)) scale(1.03)}
+  100%{transform:translateY(30px) rotate(var(--tilt,0deg)) scale(.82);opacity:.2}
+}
 
 .idxs{display:grid;grid-template-columns:repeat(8,1fr);gap:3px;margin:5px -8px 0}
-.idx{text-align:center;font-size:11.5px;color:var(--faint);font-variant-numeric:tabular-nums}
+.idx{text-align:center;font-size:11.5px;color:var(--faint);font-variant-numeric:tabular-nums;
+  transition:color var(--t),transform var(--t)}
 .idx.in{color:var(--violet)}
 
-.band{position:relative;height:5px;margin:8px -8px 0;border-radius:99px;background:rgba(255,255,255,.055)}
-.band i{
-  position:absolute;top:0;height:5px;border-radius:99px;
-  background:linear-gradient(90deg,var(--violet-d),var(--violet));
-  box-shadow:0 0 12px -2px var(--violet-g);
-  transition:left .34s cubic-bezier(.4,0,.2,1),width .34s cubic-bezier(.4,0,.2,1),opacity .2s
-}
-.bandlab{margin-top:7px;text-align:center;font-size:11.5px;color:var(--faint)}
+.band{position:relative;height:6px;margin:8px -8px 0;border-radius:99px;background:rgba(255,255,255,.05);overflow:hidden}
+.band i{position:absolute;top:0;height:6px;border-radius:99px;
+  background:linear-gradient(90deg,var(--violet-d),var(--violet),var(--violet-d));
+  box-shadow:0 0 16px -1px var(--violet-g);
+  transition:left .46s var(--e-spring),width .46s var(--e-spring),opacity var(--t)}
+.bandlab{margin-top:7px;text-align:center;font-size:11.5px;color:var(--faint);letter-spacing:.03em}
 
 .say{
-  margin:clamp(8px,1.8vh,16px) 0 0;padding:clamp(9px,1.6vh,13px) 15px;border-radius:var(--r2);
-  min-height:clamp(46px,8.6vh,74px);
+  position:relative;margin:clamp(6px,1.2vh,10px) 0 0;padding:clamp(8px,1.4vh,12px) 15px;
+  border-radius:var(--r2);min-height:clamp(42px,7.4vh,64px);overflow:hidden;
   background:var(--glass);border:1px solid var(--line);
-  font-size:13.5px;line-height:1.72;color:var(--dim)
+  font-size:13.5px;line-height:1.72;color:var(--dim);
+  transition:border-color var(--t),background var(--t)
 }
-.say b{color:var(--ink);font-weight:650}
-.say .hl{color:var(--amber);font-weight:650;font-variant-numeric:tabular-nums}
-.say.ok{border-color:rgba(64,220,166,.42);background:rgba(64,220,166,.10);color:var(--ink)}
-.say.ng{border-color:rgba(240,122,140,.42);background:rgba(240,122,140,.10);color:var(--ink)}
+.say b{color:var(--ink);font-weight:700}
+.say .hl{color:var(--amber);font-weight:750;font-variant-numeric:tabular-nums}
+.say.ok{border-color:rgba(62,231,174,.45);background:rgba(62,231,174,.10);color:var(--ink)}
+.say.ng{border-color:rgba(255,126,146,.45);background:rgba(255,126,146,.10);color:var(--ink)}
+.say.beat{animation:saybeat .42s var(--e-out)}
+@keyframes saybeat{0%{opacity:.4;transform:translateY(-3px)}100%{opacity:1;transform:none}}
 /* めくった順が 1 行も入らない端末では、その場所を実況にまわします */
 .play.nohist .say{flex:1 1 auto;min-height:0;overflow-y:auto}
 
-.acts{
-  flex:0 0 auto;margin-top:auto;
-  padding:clamp(7px,1.4vh,12px) 16px var(--bar);
-  background:var(--bg);border-top:1px solid var(--line);
-}
-.acts .pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.act{
-  padding:clamp(8px,1.6vh,14px) 8px;border-radius:var(--r2);text-align:center;
-  font-size:14px;font-weight:600;letter-spacing:.01em;
-  background:var(--glass);border:1px solid var(--line2);color:var(--ink);
-  transition:transform .12s,opacity .18s,border-color .18s,background .18s
-}
-.act:active{transform:scale(.98)}
-.act[disabled]{opacity:.28}
-.act.l,.act.r{border-color:rgba(166,145,242,.34)}
-.act.h{border-color:rgba(64,220,166,.34);background:rgba(64,220,166,.09)}
-.act.n{border-color:rgba(244,174,102,.30);background:rgba(244,174,102,.07)}
-.act small{display:block;font-size:11px;color:var(--faint);font-weight:400;margin-top:1px}
-/* 背の低い端末では、ボタンの添え書きを畳みます（押す所の大きさを先に守ります） */
-@media (max-height:620px){ .act small{display:none} .act{font-size:13.5px} }
+/* ---- 手数のくらべ。この科目の芯は「同じ仕事でも手間の桁が変わる」ことなので、常に出します ---- */
+.cmp{flex:0 0 auto;margin:clamp(6px,1.2vh,10px) 0 0}
+.cmp .lab{display:none}
+.crow{display:flex;align-items:center;gap:9px;margin-bottom:5px;font-size:11.5px;line-height:1.35;color:var(--dim)}
+.crow:last-child{margin-bottom:0}
+.crow .cl{flex:0 0 68px;text-align:right;letter-spacing:.02em}
+.crow .bar{flex:1;height:10px;border-radius:99px;background:rgba(255,255,255,.055);overflow:hidden;position:relative}
+.crow .bar i{position:absolute;left:0;top:0;height:10px;border-radius:99px;width:0;
+  transition:width .52s var(--e-spring)}
+.crow .bar i.w{background:linear-gradient(90deg,#4A5378,#7C86B8)}
+.crow .bar i.v{background:linear-gradient(90deg,var(--violet-d),var(--violet));
+  box-shadow:0 0 12px -2px var(--violet-g)}
+.crow .bar i.a{background:linear-gradient(90deg,#C4803E,var(--amber));
+  box-shadow:0 0 12px -2px var(--amber-g)}
+.crow .cn{flex:0 0 56px;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--dim)}
+.crow.now .cl,.crow.now .cn{color:var(--amber);font-weight:700}
+.crow.mute .bar{background:repeating-linear-gradient(90deg,rgba(255,255,255,.07) 0 5px,transparent 5px 10px)}
+.crow.mute .cl,.crow.mute .cn{color:var(--gray)}
+.crow.over .bar i.a{background:linear-gradient(90deg,#B85C6E,var(--rose))}
+.crow.over .cl,.crow.over .cn{color:var(--rose)}
 
-/* ---- 提出 ---- */
-.done{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;
-  padding:clamp(14px,2.6vh,28px) 16px calc(var(--bar) + clamp(12px,2.2vh,20px));text-align:center}
-.seal{width:clamp(44px,8vh,64px);height:auto;margin:0 auto clamp(9px,1.8vh,16px)}
-.done h2{margin:0 0 4px;font-size:clamp(17px,3vh,21px);font-weight:700}
-.done .sub{color:var(--dim);font-size:13.5px;margin:0 0 clamp(12px,2.4vh,22px)}
-.codebox{
-  padding:15px 14px;border-radius:var(--r2);margin-bottom:10px;
-  background:rgba(166,145,242,.10);border:1px solid rgba(166,145,242,.40);
-  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-  font-size:13px;line-height:1.6;word-break:break-all;text-align:left;color:var(--ink)
-}
-.tally{display:flex;gap:8px;justify-content:center;margin:0 0 clamp(11px,2.2vh,20px);flex-wrap:wrap}
-.tally span{padding:5px 11px;border-radius:999px;background:var(--glass);border:1px solid var(--line);
-  font-size:11.5px;color:var(--dim)}
-.tally b{color:var(--ink);font-variant-numeric:tabular-nums}
-
-/* ばらばらの列でめくり終えたカード。捨てたのではなく「もう見た」なので、読めるままにします */
-.card.seen{opacity:.62}
-.card.seen .face.f{border-color:var(--line2);box-shadow:none}
-.card.seen .face.f .n{color:var(--dim)}
-
-/* ---- めくった順（基準版で空いていた画面の下半分を、手順の記録で埋めます） ---- */
-.hist{flex:1;min-height:0;display:flex;flex-direction:column;margin:clamp(6px,1.4vh,12px) 0 0}
-.hist .lab{font-size:11px;letter-spacing:.16em;color:var(--faint);margin:0 2px 7px;
+/* ---- めくった順 ---- */
+.hist{flex:1;min-height:0;display:flex;flex-direction:column;margin:clamp(5px,1vh,8px) 0 0}
+.hist .lab{font-size:11px;letter-spacing:.2em;color:var(--faint);margin:0 2px 7px;
   display:flex;align-items:center;gap:9px}
 .hist .lab::after{content:"";flex:1;height:1px;background:var(--line)}
 .hist ol{list-style:none;margin:0;padding:0 0 4px;flex:1;min-height:0;
   overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 .hist li{
   display:flex;align-items:center;gap:9px;padding:clamp(5px,1vh,8px) 11px;margin-bottom:4px;
-  border-radius:11px;background:rgba(255,255,255,.035);border:1px solid var(--line);
-  font-size:12.5px;color:var(--dim);animation:slip .3s ease-out
+  border-radius:11px;background:rgba(255,255,255,.03);border:1px solid var(--line);
+  font-size:12.5px;color:var(--dim);animation:slip .36s var(--e-out) both
 }
-@keyframes slip{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
-.hist li .k{flex:0 0 auto;width:19px;height:19px;border-radius:6px;display:grid;place-items:center;
-  background:rgba(166,145,242,.18);color:var(--violet);font-size:11px;font-weight:700;
+@keyframes slip{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+.hist li .k{flex:0 0 auto;width:20px;height:20px;border-radius:7px;display:grid;place-items:center;
+  background:rgba(183,164,255,.20);color:var(--violet);font-size:11px;font-weight:750;
   font-variant-numeric:tabular-nums}
 .hist li .m{flex:1;min-width:0}
-.hist li b{color:var(--ink);font-weight:650;font-variant-numeric:tabular-nums}
+.hist li b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
 .hist li .rg{flex:0 0 auto;font-size:11.5px;color:var(--violet);font-variant-numeric:tabular-nums}
 .hist .none{padding:11px 2px;font-size:12.5px;color:var(--faint)}
 .hist li.more{justify-content:center;background:none;border-style:dashed;
   border-color:var(--line);color:var(--faint);font-size:11.5px;padding:4px 11px}
 
+/* ---- 操作 ---- */
+.acts{flex:0 0 auto;margin-top:auto;padding:clamp(7px,1.4vh,12px) 16px var(--bar);
+  background:linear-gradient(180deg,rgba(7,8,15,0),rgba(7,8,15,.92) 22%);
+  border-top:1px solid var(--line)}
+.acts .pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.act{
+  position:relative;overflow:hidden;
+  padding:clamp(8px,1.6vh,14px) 8px;border-radius:var(--r2);text-align:center;
+  font-size:14px;font-weight:650;letter-spacing:.02em;
+  background:var(--glass);border:1px solid var(--line2);color:var(--ink);
+  transition:transform var(--t-f) var(--e-out),opacity var(--t),border-color var(--t),background var(--t)
+}
+.act:active{transform:scale(.97)}
+.act[disabled]{opacity:.24}
+.act.l,.act.r{border-color:rgba(183,164,255,.36)}
+.act.l:not([disabled]),.act.r:not([disabled]){background:rgba(183,164,255,.08)}
+.act.h{border-color:rgba(62,231,174,.4)}
+.act.h:not([disabled]){background:rgba(62,231,174,.10)}
+.act.n{border-color:rgba(255,190,115,.34)}
+.act.n:not([disabled]){background:rgba(255,190,115,.08)}
+.act small{display:block;font-size:11px;color:var(--faint);font-weight:400;margin-top:1px}
+.act.bad{animation:shake .42s cubic-bezier(.36,.07,.19,.97);border-color:var(--rose)}
+/* 背の低い端末では、ボタンの添え書きを畳みます（押す所の大きさを先に守ります） */
+@media (max-height:620px){ .act small{display:none} .act{font-size:13.5px} }
+
+/* ---- 演出の層（流れに影響させません。一枚の合格線を守るため） ---- */
+.fx{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:6}
+.blade{position:absolute;height:100%;top:0;
+  background:linear-gradient(90deg,transparent,rgba(183,164,255,.85),transparent);
+  filter:blur(1px);opacity:0}
+.blade.go{animation:blade .46s var(--e-out)}
+@keyframes blade{0%{opacity:0;transform:scaleX(.2)}22%{opacity:1}100%{opacity:0;transform:scaleX(1.05)}}
+.ring{position:absolute;border-radius:50%;border:2px solid var(--green);opacity:0}
+.ring.go{animation:ring .72s var(--e-out)}
+@keyframes ring{0%{opacity:.95;transform:scale(.3)}100%{opacity:0;transform:scale(2.9)}}
+.dot{position:absolute;width:6px;height:6px;border-radius:50%;background:var(--green);opacity:0}
+.dot.go{animation:dot .78s var(--e-out) forwards}
+@keyframes dot{0%{opacity:1;transform:translate(0,0) scale(1)}
+  100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.3)}}
+.flash{position:fixed;inset:0;pointer-events:none;z-index:40;opacity:0}
+.flash.ok{background:radial-gradient(120% 70% at 50% 50%,transparent 42%,rgba(62,231,174,.30) 100%);
+  animation:flash .62s var(--e-out)}
+.flash.ng{background:radial-gradient(120% 70% at 50% 50%,transparent 42%,rgba(255,126,146,.32) 100%);
+  animation:flash .52s var(--e-out)}
+@keyframes flash{0%{opacity:0}18%{opacity:1}100%{opacity:0}}
+
+/* 問の切り替え幕 */
+.curtain{position:fixed;inset:0;z-index:50;display:none;place-items:center;text-align:center;pointer-events:none;
+  background:rgba(7,8,15,.90);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.curtain.on{display:grid;animation:curt 1.5s var(--e-out) both}
+@keyframes curt{0%{opacity:0}12%,72%{opacity:1}100%{opacity:0}}
+.curtain .ct-n{font-size:clamp(40px,9vh,72px);font-weight:800;letter-spacing:.04em;
+  font-variant-numeric:tabular-nums;
+  background:linear-gradient(170deg,#FFF 8%,var(--violet) 92%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:ctn .7s var(--e-spring) both}
+@keyframes ctn{from{opacity:0;transform:scale(.72) translateY(14px)}to{opacity:1;transform:none}}
+.curtain .ct-t{margin-top:6px;font-size:14px;color:var(--dim);letter-spacing:.1em;
+  animation:ctn .7s var(--e-spring) .12s both}
+.curtain .ct-r{margin-top:14px;font-size:12px;color:var(--faint);letter-spacing:.12em;
+  animation:ctn .7s var(--e-spring) .2s both}
+
+/* ---- 提出 ---- */
+.done{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;
+  padding:clamp(14px,2.6vh,28px) 16px calc(var(--bar) + clamp(12px,2.2vh,20px));text-align:center}
+.seal{width:clamp(50px,9vh,70px);height:auto;margin:0 auto clamp(9px,1.8vh,16px);overflow:visible}
+.seal circle,.seal path{stroke-dasharray:200;stroke-dashoffset:200;animation:draw .9s var(--e-out) forwards}
+.seal path{animation-delay:.42s}
+@keyframes draw{to{stroke-dashoffset:0}}
+.done h2{margin:0 0 4px;font-size:clamp(18px,3.2vh,23px);font-weight:750;letter-spacing:.03em;
+  animation:pop-in .5s var(--e-spring) .5s both}
+.done .sub{color:var(--dim);font-size:13.5px;margin:0 0 clamp(12px,2.4vh,22px);
+  animation:pop-in .5s var(--e-spring) .58s both}
+.codebox{
+  padding:15px 14px;border-radius:var(--r2);margin-bottom:10px;
+  background:rgba(183,164,255,.10);border:1px solid rgba(183,164,255,.42);
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:13px;line-height:1.6;word-break:break-all;text-align:left;color:var(--ink);
+  box-shadow:0 14px 40px -24px var(--violet-g);
+  animation:pop-in .5s var(--e-spring) .66s both
+}
+.tally{display:flex;gap:8px;justify-content:center;margin:0 0 clamp(11px,2.2vh,20px);flex-wrap:wrap}
+.tally span{padding:5px 12px;border-radius:999px;background:var(--glass);border:1px solid var(--line);
+  font-size:11.5px;color:var(--dim);animation:pop-in .5s var(--e-spring) both}
+.tally span:nth-child(1){animation-delay:.80s}.tally span:nth-child(2){animation-delay:.88s}
+.tally span:nth-child(3){animation-delay:.96s}.tally span:nth-child(4){animation-delay:1.04s}
+.tally b{color:var(--ink);font-variant-numeric:tabular-nums;font-weight:750}
+
+/* ---- 動きを減らす設定の端末では、全部止めます ---- */
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;
+    transition-duration:.001ms!important;scroll-behavior:auto!important}
+  .bg i{animation:none}
+}
 
 /* ★ vh はブラウザの枠を含まない高さなので、枠が出ている間は実際より大きく見積もります。
    svh が使える環境では、そちらで測り直します（枠が出ている状態がいちばん狭い） */
 @supports (height: 100svh){
-  .mark{width:clamp(74px,13svh,104px)}
-  .gate h2{font-size:clamp(19px,3.2svh,23px)}
+  .mark{width:clamp(96px,17svh,132px)}
+  .gate h2{font-size:clamp(20px,3.4svh,25px)}
   .tile{width:clamp(40px,6.2svh,46px);height:clamp(40px,6.2svh,46px)}
-  .quest .big-num{font-size:clamp(32px,5.6svh,46px)}
-  .card{height:clamp(46px,8.2svh,66px)}
-  .say{min-height:clamp(46px,8.6svh,74px)}
-  .seal{width:clamp(44px,8svh,64px)}
-  .done h2{font-size:clamp(17px,3svh,21px)}
+  .quest .big-num{font-size:clamp(34px,6svh,52px)}
+  .card{height:clamp(50px,9svh,72px)}
+  .face .n{font-size:clamp(15px,2.6svh,19px)}
+  .say{min-height:clamp(42px,7.4svh,64px)}
+  .seal{width:clamp(50px,9svh,70px)}
+  .done h2{font-size:clamp(18px,3.2svh,23px)}
+  .curtain .ct-n{font-size:clamp(40px,9svh,72px)}
 }
 
 </style>
 </head>
 <body>
+<div class="bg" aria-hidden="true"><i></i><i></i><i></i></div>
+<div class="grain" aria-hidden="true"></div>
+<div class="vig" aria-hidden="true"></div>
+<div class="curtain" id="curtain" aria-hidden="true"></div>
+
 <!-- 入口 -->
 <section class="screen" id="s-gate">
   <div class="gate">
-    <svg class="mark" viewBox="0 0 72 64" aria-hidden="true">
+    <svg class="mark" viewBox="0 0 72 66" aria-hidden="true">
       <defs><linearGradient id="gv" x1="0" y1="1" x2="1" y2="0">
-        <stop offset="0" stop-color="#6D53C8"/><stop offset="1" stop-color="#C3B4FF"/></linearGradient></defs>
-      <g fill="#333A57">
-        <rect x="1"  y="34" width="7" height="14" rx="3"/>
-        <rect x="11" y="27" width="7" height="21" rx="3"/>
-        <rect x="21" y="31" width="7" height="17" rx="3"/>
+        <stop offset="0" stop-color="#6A4BD6"/><stop offset="1" stop-color="#D3C6FF"/></linearGradient></defs>
+      <g class="bars">
+        <rect class="b" x="1"  y="34" width="7" height="14" rx="3" fill="#333A57"/>
+        <rect class="b" x="11" y="27" width="7" height="21" rx="3" fill="#333A57"/>
+        <rect class="b" x="21" y="31" width="7" height="17" rx="3" fill="#333A57"/>
+        <rect class="b" x="31" y="13" width="7" height="35" rx="3" fill="url(#gv)"/>
+        <rect class="b" x="41" y="20" width="7" height="28" rx="3" fill="url(#gv)"/>
+        <rect class="b" x="51" y="8"  width="7" height="40" rx="3" fill="url(#gv)"/>
+        <rect class="b" x="61" y="24" width="7" height="24" rx="3" fill="url(#gv)"/>
       </g>
-      <g fill="url(#gv)">
-        <rect x="31" y="13" width="7" height="35" rx="3"/>
-        <rect x="41" y="20" width="7" height="28" rx="3"/>
-        <rect x="51" y="8"  width="7" height="40" rx="3"/>
-        <rect x="61" y="24" width="7" height="24" rx="3"/>
-      </g>
-      <rect x="30" y="54" width="39" height="5" rx="2.5" fill="#40DCA6"/>
-      <rect x="1"  y="54" width="27" height="5" rx="2.5" fill="#2A3048"/>
+      <rect class="cut gone" x="1"  y="54" width="27" height="5" rx="2.5" fill="#2A3048"/>
+      <rect class="cut"      x="30" y="54" width="39" height="5" rx="2.5" fill="#3EE7AE"/>
     </svg>
     <h2>アルゴリズムとデータ構造</h2>
     <p class="sub">解いて、手数を数えて、提出コードを出します</p>
@@ -381,17 +540,23 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.55
       <div class="cond" id="q-cond"></div>
     </div>
     <div class="meters">
-      <span class="meter" id="m-wrap">手数 <b class="tnum" id="m-move">0</b>
-        <span style="color:var(--faint)">/</span> <b class="tnum" id="m-lim">3</b></span>
+      <span class="meter" id="m-wrap">手数 <span class="pips" id="pips"></span></span>
       <span class="meter">候補 <b class="tnum" id="m-left">8</b></span>
     </div>
-    <div class="board">
+    <div class="board" id="board">
       <div class="cards" id="cards"></div>
       <div class="idxs" id="idxs"></div>
       <div class="band" id="band"><i></i></div>
       <div class="bandlab" id="band-lab"></div>
+      <div class="fx" id="fx" aria-hidden="true"></div>
     </div>
     <div class="say" id="say"></div>
+    <div class="cmp" id="cmp">
+      <div class="lab">手数のくらべ</div>
+      <div class="crow"><span class="cl">端から順</span><span class="bar"><i class="w" id="c-lin"></i></span><span class="cn" id="c-linn">—</span></div>
+      <div class="crow"><span class="cl">真ん中から</span><span class="bar"><i class="v" id="c-bin"></i></span><span class="cn" id="c-binn">—</span></div>
+      <div class="crow now"><span class="cl">いま</span><span class="bar"><i class="a" id="c-now"></i></span><span class="cn tnum" id="c-nown">0</span></div>
+    </div>
     <div class="hist" id="hist">
       <div class="lab">めくった順</div>
       <ol id="histlist"></ol>
@@ -414,8 +579,8 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.55
 <section class="screen" id="s-done">
   <div class="done">
     <svg class="seal" viewBox="0 0 64 64" aria-hidden="true">
-      <circle cx="32" cy="32" r="28" fill="none" stroke="#40DCA6" stroke-width="3"/>
-      <path d="M20 33l8.5 8.5L44 25" fill="none" stroke="#40DCA6" stroke-width="4"
+      <circle cx="32" cy="32" r="28" fill="none" stroke="#3EE7AE" stroke-width="3"/>
+      <path d="M20 33l8.5 8.5L44 25" fill="none" stroke="#3EE7AE" stroke-width="4"
             stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
     <h2>3 問つづけて通りました</h2>
@@ -597,6 +762,152 @@ if(typeof module !== 'undefined' && module.exports) module.exports = PZ;
 
 </script>
 <script>
+/* ==========================================================================
+   演出。**流れ（レイアウト）に影響させません。**動かすのは transform と opacity だけです。
+   ここを動かすと「一枚に収まる」の合格線が崩れます。
+   動きを減らす設定の端末では、全部すぐ終わらせます。
+   ========================================================================== */
+var FX = (function(){
+  var reduce = false;
+  try{ reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
+
+  function rnd(a, b){ return a + Math.random() * (b - a); }
+  function wait(ms){ return new Promise(function(r){ setTimeout(r, reduce ? Math.min(ms, 40) : ms); }); }
+
+  /* 数を回して見せる。いきなり書き換えると、減ったことに気づけません。
+     ★ 前の回転を必ず止めること。止めないと 2 本が同じ字を奪い合い、
+       8 から 1 へ減らしているのに「21」のような無い数が出ます（2026-09-21 に実物で出ました）。 */
+  var rolls = 0;
+  function roll(el, to, ms){
+    if(!el) return;
+    var mine = ++rolls;
+    el.__roll = mine;
+    var from = parseInt(el.textContent, 10);
+    if(isNaN(from) || reduce || from === to){ el.textContent = to; return; }
+    /* ★ requestAnimationFrame は検査の virtual-time で進みません。
+       実機でも検査でも同じに動くよう、時計は setTimeout で刻みます。 */
+    var t0 = Date.now(), d = ms || 380;
+    (function step(){
+      if(el.__roll !== mine) return;          /* 新しい回転に譲る */
+      var k = Math.min(1, (Date.now() - t0) / d);
+      var e = 1 - Math.pow(1 - k, 3);
+      el.textContent = Math.round(from + (to - from) * e);
+      if(k < 1) setTimeout(step, 16); else el.textContent = to;
+    })();
+  }
+
+  function bump(el){
+    if(!el || reduce) return;
+    el.classList.remove('bump');
+    void el.offsetWidth;
+    el.classList.add('bump');
+  }
+
+  /* 捨てる側を切り落とす。刃を走らせ、遠いカードから順に落とします */
+  function cut(layer, board, cards, list, dir){
+    if(!layer || !list.length) return;
+    var bb = board.getBoundingClientRect();
+    var first = cards[list[0] - 1].getBoundingClientRect();
+    var last = cards[list[list.length - 1] - 1].getBoundingClientRect();
+    if(!reduce){
+      var bl = document.createElement('div');
+      bl.className = 'blade';
+      bl.style.left = (first.left - bb.left - 6) + 'px';
+      bl.style.width = (last.right - first.left + 12) + 'px';
+      bl.style.transformOrigin = (dir === 'L') ? 'right center' : 'left center';
+      layer.appendChild(bl);
+      void bl.offsetWidth;
+      bl.classList.add('go');
+      setTimeout(function(){ if(bl.parentNode) bl.parentNode.removeChild(bl); }, 520);
+    }
+    list.forEach(function(p, i){
+      var c = cards[p - 1];
+      if(!c) return;
+      var order = (dir === 'L') ? (list.length - 1 - i) : i;   /* 切り口から遠い方が先に落ちます */
+      c.style.setProperty('--tilt', rnd(-9, 9).toFixed(1) + 'deg');
+      if(reduce){ c.classList.add('out'); return; }
+      setTimeout(function(){ c.classList.add('dying'); }, 60 + order * 42);
+    });
+  }
+
+  /* 当たり。輪と粒を散らします */
+  function burst(layer, card){
+    if(!layer || !card || reduce) return;
+    var bb = layer.getBoundingClientRect(), r = card.getBoundingClientRect();
+    var cx = r.left - bb.left + r.width / 2, cy = r.top - bb.top + r.height / 2;
+    var d = Math.max(r.width, r.height);
+    var ring = document.createElement('div');
+    ring.className = 'ring';
+    ring.style.left = (cx - d / 2) + 'px'; ring.style.top = (cy - d / 2) + 'px';
+    ring.style.width = d + 'px'; ring.style.height = d + 'px';
+    layer.appendChild(ring); void ring.offsetWidth; ring.classList.add('go');
+    for(var i = 0; i < 12; i++){
+      var a = (Math.PI * 2 * i) / 12 + rnd(-.2, .2), len = rnd(34, 78);
+      var dot = document.createElement('div');
+      dot.className = 'dot';
+      dot.style.left = (cx - 3) + 'px'; dot.style.top = (cy - 3) + 'px';
+      dot.style.setProperty('--dx', (Math.cos(a) * len).toFixed(1) + 'px');
+      dot.style.setProperty('--dy', (Math.sin(a) * len).toFixed(1) + 'px');
+      dot.style.animationDelay = (i * 8) + 'ms';
+      layer.appendChild(dot); void dot.offsetWidth; dot.classList.add('go');
+    }
+    setTimeout(function(){ while(layer.firstChild) layer.removeChild(layer.firstChild); }, 900);
+  }
+
+  function flash(kind){
+    if(reduce) return;
+    var f = document.createElement('div');
+    f.className = 'flash ' + kind;
+    document.body.appendChild(f);
+    setTimeout(function(){ if(f.parentNode) f.parentNode.removeChild(f); }, 700);
+  }
+
+  function shake(el){
+    if(!el || reduce) return;
+    el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake');
+    setTimeout(function(){ el.classList.remove('shake'); }, 460);
+  }
+  function bad(el){
+    if(!el || reduce) return;
+    el.classList.remove('bad'); void el.offsetWidth; el.classList.add('bad');
+    setTimeout(function(){ el.classList.remove('bad'); }, 460);
+  }
+
+  /* 問の切り替え。間を置くと、3 問が「つづき」に感じられます */
+  function curtain(n, title, rule){
+    var c = document.getElementById('curtain');
+    if(!c) return wait(0);
+    c.innerHTML = '<div><div class="ct-n">問 ' + n + '</div>'
+                + '<div class="ct-t">' + title + '</div>'
+                + '<div class="ct-r">' + rule + '</div></div>';
+    c.classList.remove('on'); void c.offsetWidth; c.classList.add('on');
+    var d = reduce ? 40 : 1500;
+    setTimeout(function(){ c.classList.remove('on'); }, d);
+    return wait(reduce ? 40 : 1080);
+  }
+
+  /* 提出コードを 1 文字ずつ確定させます */
+  function scramble(el, text){
+    if(!el) return;
+    if(reduce){ el.textContent = text; return; }
+    var A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-.';
+    var i = 0;
+    el.textContent = '';
+    var id = setInterval(function(){
+      i++;
+      if(i > text.length){ clearInterval(id); el.textContent = text; return; }
+      var head = text.slice(0, i), tail = '';
+      for(var k = i; k < Math.min(text.length, i + 6); k++) tail += A.charAt(Math.floor(Math.random() * A.length));
+      el.textContent = head + tail;
+    }, 22);
+  }
+
+  return { reduce:reduce, roll:roll, bump:bump, cut:cut, burst:burst,
+           flash:flash, shake:shake, bad:bad, curtain:curtain, scramble:scramble, wait:wait };
+})();
+
+</script>
+<script>
 (function(){
 'use strict';
 
@@ -719,22 +1030,32 @@ function buildList(){
 }
 
 /* ---- 演習 ---- */
+/* 幕で問を区切ります。3 問が「つづき」であることが、間で伝わります */
+function openRound(r){
+  var pr = PZ.problem(S.sid, S.nonce, r);
+  FX.curtain(r + 1,
+             pr.mode === 'unsorted' ? 'ばらばらに置いてあります' : '小さい順に並んでいます',
+             '上限 ' + pr.limit + ' 手').then(function(){ startRound(r); });
+}
 function startLesson(n){
   S.lesson = n; S.nonce = PZ.newNonce(); S.recs = []; S.tally = [];
   S.startedAt = Date.now();
   /* ★ 先に画面を出してから組みます。出す前に測ると、高さが全部 0 になり、
      「入らない」と判定して、入るはずの端末でも畳んでしまいます（2026-09-21 に実測）。 */
   show('play');
-  startRound(0);
+  openRound(0);     /* ★ 幕のあとに組みます。ここで startRound を直に呼ぶと二重に組まれ、
+                       めくった札が途中で戻ります */
 }
 function startRound(r){
   S.round = r;
   S.pr = PZ.problem(S.sid, S.nonce, r);
   S.lo = 1; S.hi = PZ.N; S.rec = ''; S.pending = 0; S.over = false; S.hist = [];
   drawBoard();
+  drawPips(S.pr.limit);
   paint();
   drawHist();
   say(intro(), '');
+  FX.bump($('q-num'));
 }
 function intro(){
   var p = S.pr;
@@ -743,6 +1064,18 @@ function intro(){
          + '<span class="hl">' + p.target + '</span> を探してください。';
   return '<b>小さい順に並んでいます。</b><span class="hl">' + p.target + '</span> を探してください。'
        + 'この列に入っていないこともあります。';
+}
+function drawPips(limit){
+  var h = '';
+  for(var i = 0; i < limit; i++) h += '<i></i>';
+  $('pips').innerHTML = h;
+}
+function setPips(moves, limit){
+  var ps = $('pips').children;
+  for(var i = 0; i < ps.length; i++){
+    ps[i].classList.toggle('used', i < moves);
+    ps[i].classList.toggle('last', i === limit - 1 && moves < limit);
+  }
 }
 function drawBoard(){
   var c = '', ix = '';
@@ -768,10 +1101,9 @@ function paint(){
   $('play-step').textContent = '問 ' + (S.round + 1) + ' / ' + PZ.ROUNDS;
   $('q-num').textContent = p.target;
   $('q-cond').textContent = p.mode === 'unsorted' ? 'ばらばらに置いてあります' : '小さい順に並んでいます';
-  $('m-move').textContent = moves;
-  $('m-lim').textContent = p.limit;
-  $('m-wrap').classList.toggle('warn', moves >= p.limit && !S.over);
-  $('m-left').textContent = (p.mode === 'unsorted') ? PZ.N - settled : Math.max(0, S.hi - S.lo + 1);
+  setPips(moves, p.limit);
+  $('m-wrap').classList.toggle('warn', moves >= p.limit - 1 && !S.over);
+  FX.roll($('m-left'), (p.mode === 'unsorted') ? PZ.N - settled : Math.max(0, S.hi - S.lo + 1));
 
   var nodes = el.cards.children;
   for(i = 1; i <= PZ.N; i++){
@@ -779,6 +1111,7 @@ function paint(){
     b.classList.toggle('flip', !!flipped[i]);
     b.classList.toggle('out', !inRange && !(S.pending === i));
     b.classList.toggle('seen', p.mode === 'unsorted' && !!flipped[i] && S.pending !== i);
+    b.classList.toggle('live', p.mode !== 'unsorted' && inRange && !flipped[i] && !S.over);
     b.classList.toggle('now', S.pending === i);
     b.classList.toggle('hit', !!flipped[i] && p.cards[i-1] === p.target && S.over);
     b.disabled = S.over || !!S.pending || !!flipped[i] || (p.mode !== 'unsorted' && !inRange);
@@ -796,6 +1129,7 @@ function paint(){
     band.style.left = (ra.left - base.left) + 'px';
     band.style.width = (rz.right - ra.left) + 'px';
   }
+  drawCmp(p, moves);
   $('band-lab').textContent = (p.mode === 'unsorted')
     ? 'まだめくっていないカード ' + (PZ.N - settled) + ' 枚'
     : (S.lo > S.hi ? '残っている範囲はありません' : '残っている範囲 ' + S.lo + ' 〜 ' + S.hi);
@@ -832,8 +1166,10 @@ function drawHist(){
    問1 で 8 手めくると、背の低い端末では 2〜4 手ぶん溢れます。 */
 function fitHist(){
   var hist = $('hist'), box = $('histlist'), play = document.querySelector('.play');
+  var cmp = $('cmp'), scr = $('s-play');
   if(!box || !hist) return;
   hist.style.display = '';
+  if(cmp) cmp.style.display = '';
   if(play) play.classList.remove('nohist');
   var old = box.querySelector('.more');
   if(old) box.removeChild(old);
@@ -842,6 +1178,8 @@ function fitHist(){
   function foldAll(){
     hist.style.display = 'none';
     if(play) play.classList.add('nohist');
+    /* それでも入らないなら、くらべも畳みます（押す所と盤を先に守ります） */
+    if(cmp && scr && scr.scrollHeight > scr.clientHeight + 1) cmp.style.display = 'none';
   }
   if(!lis.length){ foldAll(); return; }
 
@@ -869,8 +1207,25 @@ function fitHist(){
     foldAll();          /* 畳んでも入らないなら、節ごと畳みます */
   }
 }
+/* 端から順と、真ん中から半分にする手数をならべ、いまの手数をその上に重ねます。
+   同じ 8 枚でも手間の桁が変わることが、棒の長さで見えます */
+function drawCmp(p, moves){
+  var un = (p.mode === 'unsorted');
+  var worst = PZ.N;                 /* 端から順の最悪 */
+  var best = p.limit;               /* 真ん中から聞いたときの上限 */
+  var sc = Math.max(worst, moves, 1);
+  $('c-lin').style.width = (100 * worst / sc) + '%';
+  /* ★ 並んでいない列では、半分に絞れません。棒を伸ばすと「同じ速さ」に見えるので、空のままにします */
+  $('c-bin').style.width = un ? '0%' : (100 * best / sc) + '%';
+  $('c-now').style.width = (100 * moves / sc) + '%';
+  $('c-linn').textContent = '最大 ' + worst;
+  $('c-binn').textContent = un ? '使えない' : '最大 ' + best;
+  $('c-nown').textContent = moves + ' 手';
+  $('cmp').querySelector('.crow.now').classList.toggle('over', !un && moves > best);
+  $('cmp').querySelectorAll('.crow')[1].classList.toggle('mute', un);
+}
 function say(html, cls){
-  el.say.className = 'say' + (cls ? ' ' + cls : '');
+  el.say.className = 'say beat' + (cls ? ' ' + cls : '');
   el.say.innerHTML = html;
   /* ★ 実況の長さで器の高さが変わるので、書いたあとに測り直します。
      書く前に測ると、入ると思った行が入らなくなります（2026-09-21 に実測）。 */
@@ -911,7 +1266,7 @@ function choose(c){
         + '全部めくるまで、無いとは言い切れません。', '');
       return;
     }
-    fail('残っている範囲が ' + S.lo + ' 〜 ' + S.hi + ' にあります。ここを調べ終えるまで、無いとは言えません。');
+    fail('残っている範囲が ' + S.lo + ' 〜 ' + S.hi + ' にあります。ここを調べ終えるまで、無いとは言えません。', 'a-n');
     return;
   }
   /* ばらばらの列では、左右を捨てられません。ここは失敗にしません */
@@ -923,20 +1278,25 @@ function choose(c){
   if(!pos) return;
   var v = p.cards[pos-1];
   if(v === p.target){
-    if(c !== 'H'){ fail('めくった <b>' + v + '</b> が、さがしている <b>' + p.target + '</b> そのものです。'); return; }
+    if(c !== 'H'){ fail('めくった <b>' + v + '</b> が、さがしている <b>' + p.target + '</b> そのものです。', 'a-' + c.toLowerCase()); return; }
     finishRound(S.rec + String(pos) + 'H'); return;
   }
-  if(c === 'H'){ fail('めくった <b>' + v + '</b> は、さがしている <b>' + p.target + '</b> ではありません。'); return; }
+  if(c === 'H'){ fail('めくった <b>' + v + '</b> は、さがしている <b>' + p.target + '</b> ではありません。', 'a-h'); return; }
   if(p.mode === 'unsorted'){ /* ここには来ません */ return; }
   var want = (v < p.target) ? 'L' : 'R';
   if(c !== want){
     fail('<b>' + v + '</b> は <b>' + p.target + '</b> より' + (v < p.target ? '小さい' : '大きい')
-       + 'ので、捨てるのは' + (v < p.target ? '左' : '右') + '側です。');
+       + 'ので、捨てるのは' + (v < p.target ? '左' : '右') + '側です。', 'a-' + c.toLowerCase());
     return;
   }
   S.rec += String(pos) + c;
   S.pending = 0;
+  var gone = [];
+  if(c === 'L'){ for(var q = S.lo; q <= pos; q++) gone.push(q); }
+  else         { for(var q2 = pos; q2 <= S.hi; q2++) gone.push(q2); }
   if(c === 'L') S.lo = Math.max(S.lo, pos + 1); else S.hi = Math.min(S.hi, pos - 1);
+  FX.cut(el.fx, el.board, el.cards.children, gone, c);
+  buzz(14);
   var moves = S.rec.length / 2;
   S.hist.push({p:pos, v:v,
                what:(v < p.target ? '小さいので左を捨てました。' : '大きいので右を捨てました。'),
@@ -959,12 +1319,14 @@ function choose(c){
     fail('残りがなくなりました。捨てる側をまちがえています。');
   }
 }
-function fail(why){
+function fail(why, btn){
   S.over = true; buzz([12, 60, 12]); paint();
+  FX.shake(el.board); FX.flash('ng'); if(btn) FX.bad($(btn));
   say((why ? why + '<br>' : '') + '<b>1 問目からやり直します。</b>カードは新しく引き直します。', 'ng');
   $('a-l').disabled = $('a-r').disabled = $('a-h').disabled = $('a-n').disabled = true;
   setTimeout(function(){
-    S.nonce = PZ.newNonce(); S.recs = []; S.tally = []; startRound(0);
+    S.nonce = PZ.newNonce(); S.recs = []; S.tally = [];
+    openRound(0);
   }, 2100);
 }
 function finishRound(rec){
@@ -975,7 +1337,10 @@ function finishRound(rec){
   drawHist();
   S.rec = rec; S.over = true; S.pending = 0; buzz(24);
   S.recs.push(rec); S.tally.push(j.moves);
+  var hitPos = (rec.slice(-2) === '0N') ? 0 : (rec.charCodeAt(rec.length - 2) - 48);
   paint();
+  if(hitPos) FX.burst(el.fx, el.cards.children[hitPos - 1]);
+  FX.flash('ok');
   var p = S.pr, tail;
   if(p.mode === 'unsorted')
     tail = '<b>' + j.moves + ' 手</b>で見つかりました。ばらばらの列では、端から順にめくるほかにやり方がありません。';
@@ -985,14 +1350,16 @@ function finishRound(rec){
     tail = '<b>' + j.moves + ' 手</b>で見つかりました。8 枚を端から順にめくると、最大 8 手かかります。';
   say(tail, 'ok');
   setTimeout(function(){
-    if(S.round + 1 < PZ.ROUNDS) startRound(S.round + 1);
-    else finishAll();
-  }, 1600);
+    if(S.round + 1 < PZ.ROUNDS){
+      var nr = S.round + 1;
+      openRound(nr);
+    }else finishAll();
+  }, 1500);
 }
 function finishAll(){
   S.code = PZ.encode(S.sid, S.nonce, S.recs);
   store('algo.clear.' + S.lesson, '1');
-  $('code').textContent = S.code;
+  FX.scramble($('code'), S.code);
   var mm = Math.round((Date.now() - S.startedAt) / 1000);
   $('tally').innerHTML =
       '<span>問1 <b>' + S.tally[0] + '</b> 手</span>'
@@ -1005,6 +1372,7 @@ function finishAll(){
 /* ------------------------------------------------------------------ 起動 */
 function boot(){
   el.cards = $('cards'); el.idxs = $('idxs'); el.band = $('band'); el.say = $('say');
+  el.fx = $('fx'); el.board = $('board');
   initGate();
   $('list-body').addEventListener('click', function(e){
     var t = e.target.closest('.tile');
