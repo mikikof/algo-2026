@@ -25,18 +25,30 @@ self.addEventListener('fetch', function(e){
   var rest = url.pathname.slice(base.length);
   var mine = (rest === '' || FILES.indexOf('./' + rest) >= 0);
   if(!mine) return;
+
+  function keep(res){
+    if(res && res.ok){
+      var copy = res.clone();
+      caches.open(V).then(function(c){ c.put(req, copy); }).catch(function(){});
+    }
+    return res;
+  }
+  /* ★ 本文だけは「通信があれば新しい方、無ければ控え」。
+     控え優先のままだと、直したものが学生の端末に届くのが 1 回遅れます（授業中に直せません）。 */
+  var isDoc = (rest === '' || rest === 'index.html' || req.mode === 'navigate');
+  if(isDoc){
+    e.respondWith(
+      fetch(req).then(keep).catch(function(){
+        return caches.match(req).then(function(h){ return h || caches.match('./index.html'); });
+      })
+    );
+    return;
+  }
+  /* 絵や札は控え優先。中身が変わったら版ごと入れ替わります */
   e.respondWith(
     caches.match(req).then(function(hit){
       if(hit) return hit;
-      return fetch(req).then(function(res){
-        if(res && res.ok){
-          var copy = res.clone();
-          caches.open(V).then(function(c){ c.put(req, copy); }).catch(function(){});
-        }
-        return res;
-      }).catch(function(){
-        return (req.mode === 'navigate') ? caches.match('./index.html') : Response.error();
-      });
+      return fetch(req).then(keep).catch(function(){ return Response.error(); });
     })
   );
 });
