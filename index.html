@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0A0C16">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="アルゴリズムとデータ構造の演習。解いて、手数を数えて、提出コードを出します。">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="アルゴリズム">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="robots" content="noindex">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<title>アルゴリズムとデータ構造</title>
+<style>
+/* ==========================================================================
+   手元で解くための器。投影には使いません（だから暗い配色にしています）。
+   基準版（アルゴリズム図鑑）との違いは spec/00_設計.md の表。
+   ========================================================================== */
+:root{
+  --bg:#0A0C16; --bg2:#171243; --bg3:#0E1B33;
+  --ink:#ECEEF8; --dim:#99A1C0; --faint:#6A7295;
+  --line:rgba(255,255,255,.10); --line2:rgba(255,255,255,.18);
+  --glass:rgba(255,255,255,.055);
+  --violet:#A691F2; --violet-d:#6D53C8; --violet-g:rgba(166,145,242,.38);
+  --amber:#F4AE66; --amber-g:rgba(244,174,102,.40);
+  --green:#40DCA6; --green-g:rgba(64,220,166,.38);
+  --rose:#F07A8C;
+  --gray:#4E5674;
+  --r:18px; --r2:13px;
+  --bar:calc(env(safe-area-inset-bottom,0px) + 12px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;height:100%}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP","Yu Gothic",sans-serif;
+  font-size:15px; line-height:1.7; letter-spacing:.01em;
+  -webkit-font-smoothing:antialiased;
+  overscroll-behavior:none;
+}
+body::before{
+  content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
+  background:
+    radial-gradient(120% 70% at 18% -8%, var(--bg2) 0%, transparent 58%),
+    radial-gradient(110% 60% at 90% 4%, var(--bg3) 0%, transparent 52%),
+    linear-gradient(180deg,#0A0C16 0%,#080A12 100%);
+}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+.tnum{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+
+/* ---- 画面の骨 ---- */
+.screen{display:none;min-height:100%;flex-direction:column}
+.screen.on{display:flex}
+/* ★ 演習の画面だけは画面の高さに閉じます。閉じないと、めくった順が伸びて
+   下の操作ボタンの裏へもぐり込みます（2026-09-20 に実物で確認）。dvh はアドレスバーぶんを含みません */
+#s-play.on{height:100vh;height:100dvh;overflow:hidden}
+.wrap{padding:0 16px;max-width:520px;margin:0 auto;width:100%}
+
+.top{
+  position:sticky;top:0;z-index:20;
+  display:flex;align-items:center;gap:10px;
+  padding:calc(env(safe-area-inset-top,0px) + 10px) 14px 10px;
+  background:rgba(10,12,22,.72);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border-bottom:1px solid var(--line);
+}
+.top .back{width:40px;height:40px;border-radius:50%;background:var(--glass);border:1px solid var(--line);
+  display:grid;place-items:center;flex:0 0 auto}
+.top .back svg{width:16px;height:16px}
+.top h1{margin:0;font-size:15px;font-weight:650;letter-spacing:.02em;flex:1;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.top .step{font-size:12.5px;color:var(--dim);flex:0 0 auto}
+
+/* ---- 入口 ---- */
+.gate{flex:1;display:flex;flex-direction:column;justify-content:center;padding:34px 16px calc(var(--bar) + 20px)}
+.mark{width:104px;height:92px;margin:0 auto 24px;display:block}
+.gate h2{margin:0 0 6px;text-align:center;font-size:23px;font-weight:700;letter-spacing:.02em}
+.gate .sub{margin:0 0 30px;text-align:center;color:var(--dim);font-size:13.5px}
+.field{display:block;margin:0 0 8px;font-size:12.5px;color:var(--dim)}
+input[type=text]{
+  width:100%;padding:15px 16px;border-radius:var(--r2);
+  background:rgba(255,255,255,.06);border:1px solid var(--line2);color:var(--ink);
+  font-size:19px;letter-spacing:.16em;font-variant-numeric:tabular-nums;
+  text-transform:uppercase;outline:none;transition:border-color .18s,box-shadow .18s
+}
+input[type=text]:focus{border-color:var(--violet);box-shadow:0 0 0 4px var(--violet-g)}
+/* ★ text-transform はプレースホルダにも効きます。効かせると、まだ何も打っていないのに
+   欄が「AAA26217」と見え、下の説明（例 aaa26217）とも食い違います */
+input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.55;letter-spacing:.10em}
+.hint{margin:9px 2px 0;font-size:12.5px;color:var(--faint);min-height:1.7em}
+.hint.ng{color:var(--rose)}
+
+/* ---- 大きなボタン ---- */
+.big{
+  display:block;width:100%;padding:16px;border-radius:var(--r2);
+  font-size:16px;font-weight:650;text-align:center;letter-spacing:.03em;
+  background:linear-gradient(135deg,var(--violet) 0%,var(--violet-d) 100%);
+  color:#0B0A18;box-shadow:0 8px 24px -10px var(--violet-g);
+  transition:transform .12s,opacity .18s
+}
+.big:active{transform:scale(.985)}
+.big[disabled]{opacity:.34;box-shadow:none}
+.ghost{background:var(--glass);border:1px solid var(--line2);color:var(--ink);box-shadow:none}
+
+/* ---- 一覧 ---- */
+.list{flex:1;padding:16px 16px calc(var(--bar) + 26px)}
+.grp{margin:0 0 22px}
+.grp h3{
+  margin:0 0 10px;font-size:11.5px;font-weight:650;letter-spacing:.16em;color:var(--faint);
+  display:flex;align-items:center;gap:9px
+}
+.grp h3::after{content:"";flex:1;height:1px;background:var(--line)}
+.row{
+  display:flex;align-items:center;gap:13px;width:100%;text-align:left;
+  padding:13px 14px;margin:0 0 8px;border-radius:var(--r);
+  background:var(--glass);border:1px solid var(--line);
+  transition:border-color .18s,transform .12s,background .18s
+}
+.row:active{transform:scale(.99)}
+.row.ready{border-color:rgba(166,145,242,.42);background:rgba(166,145,242,.10)}
+.row.soon{opacity:.46}
+.row .no{
+  flex:0 0 auto;width:36px;height:36px;border-radius:11px;display:grid;place-items:center;
+  font-size:14.5px;font-weight:700;background:rgba(255,255,255,.07);color:var(--dim);
+  font-variant-numeric:tabular-nums
+}
+.row.ready .no{background:linear-gradient(135deg,var(--violet),var(--violet-d));color:#0B0A18}
+.row.clear .no{background:linear-gradient(135deg,var(--green),#1FA07A);color:#04231A}
+.row .tx{flex:1;min-width:0}
+/* ★ span は inline なので、題が短いと難所が同じ行にくっつきます。block にします */
+.row .tt{display:block;font-size:14.5px;font-weight:600;letter-spacing:.01em}
+.row .ds{display:block;font-size:12px;color:var(--faint);margin-top:2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .go{flex:0 0 auto;font-size:11.5px;color:var(--faint)}
+.row.ready .go{color:var(--violet)}
+
+/* ---- 演習 ---- */
+.play{flex:1;min-height:0;display:flex;flex-direction:column;padding:12px 16px 0}
+.quest{text-align:center;padding:10px 0 4px}
+.quest .lab{font-size:11.5px;letter-spacing:.16em;color:var(--faint)}
+.quest .big-num{
+  font-size:46px;font-weight:750;line-height:1.1;letter-spacing:.01em;
+  font-variant-numeric:tabular-nums;
+  background:linear-gradient(135deg,#FFFFFF 10%,var(--violet) 95%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.quest .cond{font-size:13px;color:var(--dim);margin-top:2px}
+
+.meters{display:flex;gap:8px;justify-content:center;margin:12px 0 4px}
+.meter{
+  display:flex;align-items:baseline;gap:6px;padding:6px 12px;border-radius:999px;
+  background:var(--glass);border:1px solid var(--line);font-size:12px;color:var(--dim)
+}
+.meter b{font-size:15px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+.meter.warn{border-color:rgba(244,174,102,.5);background:rgba(244,174,102,.12)}
+.meter.warn b{color:var(--amber)}
+
+.board{margin:16px 0 0}
+.cards{display:grid;grid-template-columns:repeat(8,1fr);gap:3px;margin:0 -8px}
+/* 8 枚を 1 列に置くので、1 枚の幅は 360px の端末でも 40px を割らないようにします */
+.card{
+  position:relative;aspect-ratio:41/64;perspective:640px;padding:0;
+  transition:opacity .28s,transform .28s,filter .28s
+}
+.inner{
+  position:absolute;inset:0;transform-style:preserve-3d;
+  transition:transform .46s cubic-bezier(.34,1.3,.5,1)
+}
+.card.flip .inner{transform:rotateY(180deg)}
+.face{
+  position:absolute;inset:0;border-radius:10px;display:grid;place-items:center;
+  backface-visibility:hidden;-webkit-backface-visibility:hidden;overflow:hidden
+}
+.face.b{
+  background:linear-gradient(160deg,rgba(166,145,242,.26),rgba(109,83,200,.12));
+  border:1px solid rgba(166,145,242,.34)
+}
+.face.b::after{
+  content:"";position:absolute;inset:0;
+  background:repeating-linear-gradient(135deg,rgba(255,255,255,.08) 0 2px,transparent 2px 7px)
+}
+.face.f{
+  transform:rotateY(180deg);
+  background:linear-gradient(160deg,rgba(255,255,255,.14),rgba(255,255,255,.05));
+  border:1px solid var(--line2)
+}
+.face .n{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink)}
+.card.now .face.f{border-color:var(--amber);box-shadow:0 0 0 2px var(--amber-g),0 6px 18px -8px var(--amber-g)}
+.card.now .face.f .n{color:var(--amber)}
+.card.hit .face.f{border-color:var(--green);background:linear-gradient(160deg,rgba(64,220,166,.30),rgba(64,220,166,.10));
+  box-shadow:0 0 0 2px var(--green-g),0 8px 22px -8px var(--green-g)}
+.card.hit .face.f .n{color:#FFF}
+.card.out{opacity:.30;filter:saturate(.25)}
+.card.out .face{border-style:dashed;border-color:var(--gray);box-shadow:none}
+.card.out .face.b{background:rgba(255,255,255,.03)}
+.card.pop{animation:pop .34s cubic-bezier(.3,1.5,.5,1)}
+@keyframes pop{0%{transform:translateY(0)}45%{transform:translateY(-7px)}100%{transform:translateY(0)}}
+
+.idxs{display:grid;grid-template-columns:repeat(8,1fr);gap:3px;margin:5px -8px 0}
+.idx{text-align:center;font-size:11.5px;color:var(--faint);font-variant-numeric:tabular-nums}
+.idx.in{color:var(--violet)}
+
+.band{position:relative;height:5px;margin:8px -8px 0;border-radius:99px;background:rgba(255,255,255,.055)}
+.band i{
+  position:absolute;top:0;height:5px;border-radius:99px;
+  background:linear-gradient(90deg,var(--violet-d),var(--violet));
+  box-shadow:0 0 12px -2px var(--violet-g);
+  transition:left .34s cubic-bezier(.4,0,.2,1),width .34s cubic-bezier(.4,0,.2,1),opacity .2s
+}
+.bandlab{margin-top:7px;text-align:center;font-size:11.5px;color:var(--faint)}
+
+.say{
+  margin:16px 0 0;padding:13px 15px;border-radius:var(--r2);min-height:74px;
+  background:var(--glass);border:1px solid var(--line);
+  font-size:13.5px;line-height:1.72;color:var(--dim)
+}
+.say b{color:var(--ink);font-weight:650}
+.say .hl{color:var(--amber);font-weight:650;font-variant-numeric:tabular-nums}
+.say.ok{border-color:rgba(64,220,166,.42);background:rgba(64,220,166,.10);color:var(--ink)}
+.say.ng{border-color:rgba(240,122,140,.42);background:rgba(240,122,140,.10);color:var(--ink)}
+
+.acts{
+  flex:0 0 auto;margin-top:auto;
+  padding:12px 16px var(--bar);
+  background:var(--bg);border-top:1px solid var(--line);
+}
+.acts .pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.act{
+  padding:14px 8px;border-radius:var(--r2);text-align:center;
+  font-size:14px;font-weight:600;letter-spacing:.01em;
+  background:var(--glass);border:1px solid var(--line2);color:var(--ink);
+  transition:transform .12s,opacity .18s,border-color .18s,background .18s
+}
+.act:active{transform:scale(.98)}
+.act[disabled]{opacity:.28}
+.act.l,.act.r{border-color:rgba(166,145,242,.34)}
+.act.h{border-color:rgba(64,220,166,.34);background:rgba(64,220,166,.09)}
+.act.n{border-color:rgba(244,174,102,.30);background:rgba(244,174,102,.07)}
+.act small{display:block;font-size:11px;color:var(--faint);font-weight:400;margin-top:1px}
+
+/* ---- 提出 ---- */
+.done{flex:1;display:flex;flex-direction:column;justify-content:center;padding:28px 16px calc(var(--bar) + 20px);text-align:center}
+.seal{width:64px;height:64px;margin:0 auto 16px}
+.done h2{margin:0 0 4px;font-size:21px;font-weight:700}
+.done .sub{color:var(--dim);font-size:13.5px;margin:0 0 22px}
+.codebox{
+  padding:15px 14px;border-radius:var(--r2);margin-bottom:10px;
+  background:rgba(166,145,242,.10);border:1px solid rgba(166,145,242,.40);
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:13px;line-height:1.6;word-break:break-all;text-align:left;color:var(--ink)
+}
+.tally{display:flex;gap:8px;justify-content:center;margin:0 0 20px;flex-wrap:wrap}
+.tally span{padding:5px 11px;border-radius:999px;background:var(--glass);border:1px solid var(--line);
+  font-size:11.5px;color:var(--dim)}
+.tally b{color:var(--ink);font-variant-numeric:tabular-nums}
+
+/* ばらばらの列でめくり終えたカード。捨てたのではなく「もう見た」なので、読めるままにします */
+.card.seen{opacity:.62}
+.card.seen .face.f{border-color:var(--line2);box-shadow:none}
+.card.seen .face.f .n{color:var(--dim)}
+
+/* ---- めくった順（基準版で空いていた画面の下半分を、手順の記録で埋めます） ---- */
+.hist{flex:1;min-height:0;display:flex;flex-direction:column;margin:12px 0 0}
+.hist .lab{font-size:11px;letter-spacing:.16em;color:var(--faint);margin:0 2px 7px;
+  display:flex;align-items:center;gap:9px}
+.hist .lab::after{content:"";flex:1;height:1px;background:var(--line)}
+.hist ol{list-style:none;margin:0;padding:0 0 4px;flex:1;min-height:0;
+  overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.hist li{
+  display:flex;align-items:center;gap:9px;padding:8px 11px;margin-bottom:5px;
+  border-radius:11px;background:rgba(255,255,255,.035);border:1px solid var(--line);
+  font-size:12.5px;color:var(--dim);animation:slip .3s ease-out
+}
+@keyframes slip{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
+.hist li .k{flex:0 0 auto;width:19px;height:19px;border-radius:6px;display:grid;place-items:center;
+  background:rgba(166,145,242,.18);color:var(--violet);font-size:11px;font-weight:700;
+  font-variant-numeric:tabular-nums}
+.hist li .m{flex:1;min-width:0}
+.hist li b{color:var(--ink);font-weight:650;font-variant-numeric:tabular-nums}
+.hist li .rg{flex:0 0 auto;font-size:11.5px;color:var(--violet);font-variant-numeric:tabular-nums}
+.hist .none{padding:11px 2px;font-size:12.5px;color:var(--faint)}
+
+</style>
+</head>
+<body>
+<!-- 入口 -->
+<section class="screen" id="s-gate">
+  <div class="gate">
+    <svg class="mark" viewBox="0 0 72 64" aria-hidden="true">
+      <defs><linearGradient id="gv" x1="0" y1="1" x2="1" y2="0">
+        <stop offset="0" stop-color="#6D53C8"/><stop offset="1" stop-color="#C3B4FF"/></linearGradient></defs>
+      <g fill="#333A57">
+        <rect x="1"  y="34" width="7" height="14" rx="3"/>
+        <rect x="11" y="27" width="7" height="21" rx="3"/>
+        <rect x="21" y="31" width="7" height="17" rx="3"/>
+      </g>
+      <g fill="url(#gv)">
+        <rect x="31" y="13" width="7" height="35" rx="3"/>
+        <rect x="41" y="20" width="7" height="28" rx="3"/>
+        <rect x="51" y="8"  width="7" height="40" rx="3"/>
+        <rect x="61" y="24" width="7" height="24" rx="3"/>
+      </g>
+      <rect x="30" y="54" width="39" height="5" rx="2.5" fill="#40DCA6"/>
+      <rect x="1"  y="54" width="27" height="5" rx="2.5" fill="#2A3048"/>
+    </svg>
+    <h2>アルゴリズムとデータ構造</h2>
+    <p class="sub">解いて、手数を数えて、提出コードを出します</p>
+    <label class="field" for="sid">学籍番号</label>
+    <input type="text" id="sid" inputmode="latin" autocomplete="off" autocapitalize="characters"
+           spellcheck="false" maxlength="12" placeholder="aaa26217">
+    <p class="hint" id="gate-hint"></p>
+    <div style="height:18px"></div>
+    <button class="big" id="gate-go" disabled>はじめる</button>
+  </div>
+</section>
+
+<!-- 一覧 -->
+<section class="screen" id="s-list">
+  <header class="top">
+    <h1>アルゴリズムとデータ構造</h1>
+    <span class="step tnum" id="list-sid"></span>
+  </header>
+  <div class="list" id="list-body"></div>
+</section>
+
+<!-- 演習 -->
+<section class="screen" id="s-play">
+  <header class="top">
+    <button class="back" id="play-back" aria-label="一覧へもどる">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 2L4 8l6 6" fill="none"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <h1>第2回　探す</h1>
+    <span class="step" id="play-step"></span>
+  </header>
+  <div class="play">
+    <div class="quest">
+      <div class="lab">さがす数</div>
+      <div class="big-num tnum" id="q-num">—</div>
+      <div class="cond" id="q-cond"></div>
+    </div>
+    <div class="meters">
+      <span class="meter" id="m-wrap">手数 <b class="tnum" id="m-move">0</b>
+        <span style="color:var(--faint)">/</span> <b class="tnum" id="m-lim">3</b></span>
+      <span class="meter">候補 <b class="tnum" id="m-left">8</b></span>
+    </div>
+    <div class="board">
+      <div class="cards" id="cards"></div>
+      <div class="idxs" id="idxs"></div>
+      <div class="band" id="band"><i></i></div>
+      <div class="bandlab" id="band-lab"></div>
+    </div>
+    <div class="say" id="say"></div>
+    <div class="hist" id="hist">
+      <div class="lab">めくった順</div>
+      <ol id="histlist"></ol>
+    </div>
+    <div class="acts">
+      <div class="pair">
+        <button class="act l" id="a-l">ここより左を捨てる<small>出た数が小さいとき</small></button>
+        <button class="act r" id="a-r">ここより右を捨てる<small>出た数が大きいとき</small></button>
+      </div>
+      <div style="height:8px"></div>
+      <div class="pair">
+        <button class="act h" id="a-h">ここだ<small>出た数が目的のとき</small></button>
+        <button class="act n" id="a-n">この列にはない<small>残りがなくなったとき</small></button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 提出 -->
+<section class="screen" id="s-done">
+  <div class="done">
+    <svg class="seal" viewBox="0 0 64 64" aria-hidden="true">
+      <circle cx="32" cy="32" r="28" fill="none" stroke="#40DCA6" stroke-width="3"/>
+      <path d="M20 33l8.5 8.5L44 25" fill="none" stroke="#40DCA6" stroke-width="4"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <h2>3 問つづけて通りました</h2>
+    <p class="sub">下のコードを Forms に貼って提出します</p>
+    <div class="codebox tnum" id="code"></div>
+    <button class="big" id="copy">コードをコピーする</button>
+    <div style="height:14px"></div>
+    <div class="tally" id="tally"></div>
+    <button class="big ghost" id="done-back">一覧へもどる</button>
+  </div>
+</section>
+
+<script>
+/* PZCORE-BEGIN A02 */
+/* 第2回「探す」の中核。ページ（JavaScript）と採点（Python）で同じ結果になること。
+   - 入力は ASCII だけ
+   - **学籍番号は英数字 8 文字**（本学の実物は aaa26217 の形）。大文字にそろえてから問題を決める
+   - 問題は 学籍番号・パズル名・乱数札・何問目 から決まる
+   - 提出コードの中身は 学籍番号・乱数札・操作の記録。秘密は持たない。
+     **ページの JS から問題を再計算できるので、解かずに通る記録も作れます。**
+     捕まえられるのは、提出者とコードの中の学籍番号を突き合わせたときだけです
+   - 上限は `_build/app/measure_limits.py` が全数探索で決めた数。手で書き換えない */
+var PZ = (function(){
+  var ID = 'A02', ROUNDS = 3, N = 8;
+  var LIMITS = [8, 3, 3];
+  var FIXED_POS = 5;      /* 問2 の目的の位置。端から順が落ちる位置は 4 と 5 だけで、4 は 1 手で終わる */
+  var GAPS = 7;           /* 問3 のすき間は 0〜6。7 と 8 は 4 手かかる */
+
+  function fnv1a(s){
+    var h = 0x811c9dc5;
+    for(var i = 0; i < s.length; i++){
+      var ch = s.charCodeAt(i);
+      if(ch > 127) throw new Error('ASCII 以外の文字');
+      h ^= ch;
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    return h >>> 0;
+  }
+  function normSid(s){ return String(s == null ? '' : s).trim().toUpperCase(); }
+  function validSid(s){ return /^[0-9A-Z]{8}$/.test(normSid(s)); }
+
+  function rng(seed){
+    var x = (seed >>> 0) || 0x9E3779B9;
+    return function(){
+      x ^= (x << 13); x >>>= 0;
+      x ^= (x >>> 17);
+      x ^= (x << 5);  x >>>= 0;
+      return x >>> 0;
+    };
+  }
+  /* 8 枚の 2 桁の数。差は 3 以上（すき間に入る数を作れるように）。最大は 17+7*9=80 */
+  function ascCards(seed){
+    var r = rng(seed), v = [], cur = 13 + (r() % 5);
+    for(var i = 0; i < N; i++){ v.push(cur); cur += 3 + (r() % 7); }
+    return v;
+  }
+  function shuffle(a, seed){
+    var r = rng(seed), b = a.slice();
+    for(var i = b.length - 1; i > 0; i--){
+      var j = r() % (i + 1), t = b[i]; b[i] = b[j]; b[j] = t;
+    }
+    return b;
+  }
+  function seedOf(sid, nonce, r, tag){
+    return fnv1a(normSid(sid) + '|' + ID + '|' + nonce + '|' + r + '|' + tag);
+  }
+
+  /* 問題。r = 0,1,2 */
+  function problem(sid, nonce, r){
+    var asc = ascCards(seedOf(sid, nonce, r, 'c'));
+    var h = seedOf(sid, nonce, r, 'k');
+    if(r === 0){
+      var mixed = shuffle(asc, seedOf(sid, nonce, r, 's'));
+      var pos = 1 + (h % N);
+      return { round:0, mode:'unsorted', cards:mixed, target:mixed[pos-1],
+               targetPos:pos, limit:LIMITS[0] };
+    }
+    if(r === 1){
+      return { round:1, mode:'sorted', cards:asc, target:asc[FIXED_POS-1],
+               targetPos:FIXED_POS, limit:LIMITS[1] };
+    }
+    var g = h % GAPS;
+    var t = (g === 0) ? (asc[0] - 2) : (asc[g-1] + Math.floor((asc[g] - asc[g-1]) / 2));
+    return { round:2, mode:'absent', cards:asc, target:t, gap:g, targetPos:0, limit:LIMITS[2] };
+  }
+
+  /* 記録の検算。rec = "4L6R5H" のような 2 文字ずつの列。
+     返り値 {ok:真偽, why:理由, moves:手数} */
+  function judge(pr, rec){
+    var lo = 1, hi = N, seen = {}, moves = 0;
+    if(typeof rec !== 'string' || rec.length % 2 !== 0) return {ok:false, why:'記録の形が違います', moves:0};
+    for(var i = 0; i < rec.length; i += 2){
+      var pc = rec.charAt(i), c = rec.charAt(i+1);
+      if(c === 'N'){
+        if(pc !== '0') return {ok:false, why:'「ない」の書き方が違います', moves:moves};
+        if(pr.mode !== 'absent') return {ok:false, why:'この問で「ない」は選べません', moves:moves};
+        if(lo <= hi) return {ok:false, why:'まだ残っている範囲があります', moves:moves};
+        if(i + 2 !== rec.length) return {ok:false, why:'「ない」のあとに操作があります', moves:moves};
+        return {ok:true, why:'', moves:moves};
+      }
+      var p = pc.charCodeAt(0) - 48;
+      if(!(p >= 1 && p <= N)) return {ok:false, why:'位置が範囲の外です', moves:moves};
+      if(seen[p]) return {ok:false, why:'同じカードを 2 度めくっています', moves:moves};
+      if(pr.mode !== 'unsorted' && (p < lo || p > hi))
+        return {ok:false, why:'捨てた側をめくっています', moves:moves};
+      seen[p] = 1; moves++;
+      if(moves > pr.limit) return {ok:false, why:'手数が上限を超えました', moves:moves};
+      var v = pr.cards[p-1];
+      if(v === pr.target){
+        if(c !== 'H') return {ok:false, why:'当たりを当たりと選んでいません', moves:moves};
+        if(i + 2 !== rec.length) return {ok:false, why:'当たりのあとに操作があります', moves:moves};
+        return {ok:true, why:'', moves:moves};
+      }
+      if(pr.mode === 'unsorted'){
+        if(c !== '-') return {ok:false, why:'並んでいない列では捨てられません', moves:moves};
+        continue;
+      }
+      if(v < pr.target){
+        if(c !== 'L') return {ok:false, why:'出た数は目的より小さいので、左を捨てます', moves:moves};
+        lo = Math.max(lo, p + 1);
+      }else{
+        if(c !== 'R') return {ok:false, why:'出た数は目的より大きいので、右を捨てます', moves:moves};
+        hi = Math.min(hi, p - 1);
+      }
+    }
+    return {ok:false, why:'終わりまで進んでいません', moves:moves};
+  }
+
+  function crc16(s){
+    var crc = 0xFFFF;
+    for(var i = 0; i < s.length; i++){
+      crc ^= (s.charCodeAt(i) << 8);
+      for(var j = 0; j < 8; j++){
+        crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1);
+        crc &= 0xFFFF;
+      }
+    }
+    return crc;
+  }
+  function encode(sid, nonce, recs){
+    var body = ID + '-' + normSid(sid) + '-' + nonce + '-' + recs.join('.');
+    var c = crc16(body).toString(16).toUpperCase();
+    while(c.length < 4) c = '0' + c;
+    return body + '-' + c;
+  }
+  function decode(code){
+    var m = /^A02-([0-9A-Z]{8})-([0-9A-Z]{6})-([0-9A-Z.\-]*)-([0-9A-F]{4})$/.exec(String(code||'').trim().toUpperCase());
+    if(!m) return null;
+    var body = 'A02-' + m[1] + '-' + m[2] + '-' + m[3];
+    var c = crc16(body).toString(16).toUpperCase();
+    while(c.length < 4) c = '0' + c;
+    if(c !== m[4]) return null;
+    return { sid:m[1], nonce:m[2], recs:m[3].split('.') };
+  }
+  function verify(code){
+    var d = decode(code);
+    if(!d) return {ok:false, why:'コードが読めません', rounds:[]};
+    if(d.recs.length !== ROUNDS) return {ok:false, why:'問の数が合いません', rounds:[]};
+    var out = [], all = true;
+    for(var r = 0; r < ROUNDS; r++){
+      var j = judge(problem(d.sid, d.nonce, r), d.recs[r]);
+      out.push(j); if(!j.ok) all = false;
+    }
+    return {ok:all, why:all ? '' : '通っていない問があります', sid:d.sid, nonce:d.nonce, rounds:out};
+  }
+  function newNonce(){
+    var A = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', s = '';
+    for(var i = 0; i < 6; i++) s += A.charAt(Math.floor(Math.random() * 36));
+    return s;
+  }
+
+  return { ID:ID, ROUNDS:ROUNDS, N:N, LIMITS:LIMITS, FIXED_POS:FIXED_POS, GAPS:GAPS,
+           fnv1a:fnv1a, normSid:normSid, validSid:validSid, ascCards:ascCards, shuffle:shuffle,
+           problem:problem, judge:judge, crc16:crc16, encode:encode, decode:decode,
+           verify:verify, newNonce:newNonce };
+})();
+if(typeof module !== 'undefined' && module.exports) module.exports = PZ;
+/* PZCORE-END A02 */
+
+</script>
+<script>
+(function(){
+'use strict';
+
+/* ------------------------------------------------------------------ 回の一覧 */
+var GROUPS = [
+  { name:'はじめに', items:[
+    [1,'アルゴリズムとは','勘と手順の違い'] ]},
+  { name:'探す', items:[
+    [2,'線形探索と二分探索','範囲の更新と、終わりの条件'] ]},
+  { name:'しまう', items:[
+    [3,'配列とリスト','追加が速いのは、場所が分かっているときだけ'],
+    [4,'スタックとキュー','どちらの端から取り出すか'],
+    [5,'ハッシュテーブル','衝突は起きる前提で作る'] ]},
+  { name:'並べる', items:[
+    [6,'選択・挿入・バブル','ラウンドごとにどこが確定するか'],
+    [7,'再帰と分割統治','戻り道で値が決まる'],
+    [8,'マージソートとクイックソート','整列済みの 2 束は先頭どうしで合わせられる'] ]},
+  { name:'木とグラフ', items:[
+    [9,'木構造と二分探索木','追加の順で形が変わる'],
+    [10,'ヒープと優先度付きキュー','最小を取り出したあとの作り直し'],
+    [11,'幅優先探索と深さ優先探索','取り出す順で訪問順が変わる'] ]},
+  { name:'動かす', items:[
+    [12,'データ構造を Python で','list、deque、dict がどれに当たるか'],
+    [13,'探索と整列を測る','範囲の更新がコードの空欄で戻ってくる'] ]},
+  { name:'応用とまとめ', items:[
+    [14,'最短経路と文字列探索','いちばん小さい暫定値から確定していく'],
+    [15,'場面から道具を選ぶ','どれを使うかを理由つきで言う'] ]}
+];
+var READY = { 2:true };
+
+/* ------------------------------------------------------------------ 状態 */
+var S = { sid:'', lesson:0, nonce:'', round:0, pr:null, lo:1, hi:8,
+          rec:'', recs:[], pending:0, over:false, code:'', startedAt:0, tally:[], hist:[] };
+var el = {};
+function $(id){ return document.getElementById(id); }
+function store(k, v){ try{ if(v === undefined) return localStorage.getItem(k);
+                            localStorage.setItem(k, v); }catch(e){} return null; }
+function buzz(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms); }catch(e){} }
+
+/* ------------------------------------------------------------------ 画面 */
+function show(name){
+  ['gate','list','play','done'].forEach(function(n){
+    $('s-' + n).classList.toggle('on', n === name);
+  });
+  window.scrollTo(0, 0);
+}
+
+/* ---- 入口 ---- */
+function initGate(){
+  var inp = $('sid'), btn = $('gate-go'), hint = $('gate-hint');
+  var saved = store('algo.sid');
+  if(saved){ inp.value = saved; }
+  function look(){
+    /* 入らない文字を黙って消しません。打った字はそのまま残し、理由を書きます */
+    var raw = inp.value, v = PZ.normSid(raw);
+    var ok = PZ.validSid(v);
+    btn.disabled = !ok;
+    hint.classList.toggle('ng', !ok && v.length > 0);
+    if(v.length === 0){ hint.textContent = '英字と数字で 8 文字です（例 aaa26217）。'; return; }
+    var bad = v.replace(/[0-9A-Z]/g, '');
+    if(bad){ hint.textContent = '英字と数字だけが入ります。「' + bad.split('').join('」「') + '」が入っています。'; return; }
+    if(v.length < 8){ hint.textContent = 'あと ' + (8 - v.length) + ' 文字です。'; return; }
+    if(v.length > 8){ hint.textContent = '8 文字を超えています（いま ' + v.length + ' 文字）。'; return; }
+    hint.textContent = '小文字で打っても、同じ問題が出ます。';
+  }
+  inp.addEventListener('input', look);
+  btn.addEventListener('click', function(){
+    S.sid = PZ.normSid(inp.value);
+    store('algo.sid', S.sid);
+    buildList(); show('list');
+  });
+  look();
+}
+
+/* ---- 一覧 ---- */
+function buildList(){
+  var h = '';
+  GROUPS.forEach(function(g){
+    h += '<section class="grp"><h3>' + g.name + '</h3>';
+    g.items.forEach(function(it){
+      var n = it[0], ready = !!READY[n];
+      var clear = store('algo.clear.' + n) ? ' clear' : '';
+      h += '<button class="row ' + (ready ? 'ready' : 'soon') + clear + '" data-lesson="' + n + '"'
+        + (ready ? '' : ' disabled') + '>'
+        + '<span class="no tnum">' + n + '</span>'
+        + '<span class="tx"><span class="tt">' + it[1] + '</span>'
+        + '<span class="ds">' + it[2] + '</span></span>'
+        + '<span class="go">' + (ready ? (clear ? '通過' : '解く') : '準備中') + '</span>'
+        + '</button>';
+    });
+    h += '</section>';
+  });
+  $('list-body').innerHTML = h;
+  $('list-sid').textContent = S.sid;
+}
+
+/* ---- 演習 ---- */
+function startLesson(n){
+  S.lesson = n; S.nonce = PZ.newNonce(); S.recs = []; S.tally = [];
+  S.startedAt = Date.now();
+  startRound(0);
+  show('play');
+}
+function startRound(r){
+  S.round = r;
+  S.pr = PZ.problem(S.sid, S.nonce, r);
+  S.lo = 1; S.hi = PZ.N; S.rec = ''; S.pending = 0; S.over = false; S.hist = [];
+  drawBoard();
+  paint();
+  drawHist();
+  say(intro(), '');
+}
+function intro(){
+  var p = S.pr;
+  if(p.mode === 'unsorted')
+    return '<b>ばらばらに置いてあります。</b>カードを 1 枚ずつめくって、'
+         + '<span class="hl">' + p.target + '</span> を探してください。';
+  return '<b>小さい順に並んでいます。</b><span class="hl">' + p.target + '</span> を探してください。'
+       + 'この列に入っていないこともあります。';
+}
+function drawBoard(){
+  var c = '', ix = '';
+  for(var i = 1; i <= PZ.N; i++){
+    c += '<button class="card" data-p="' + i + '" aria-label="' + i + ' 枚目">'
+       + '<span class="inner"><span class="face b"></span>'
+       + '<span class="face f"><span class="n tnum"></span></span></span></button>';
+    ix += '<span class="idx tnum" data-i="' + i + '">' + i + '</span>';
+  }
+  el.cards.innerHTML = c;
+  el.idxs.innerHTML = ix;
+}
+function paint(){
+  var p = S.pr, flipped = {}, i;
+  for(i = 0; i < S.rec.length; i += 2){
+    var ch = S.rec.charAt(i);
+    if(ch !== '0') flipped[ch.charCodeAt(0) - 48] = 1;
+  }
+  var settled = Object.keys(flipped).length;     /* 記録に入った枚数 */
+  if(S.pending) flipped[S.pending] = 1;
+  var moves = Object.keys(flipped).length;       /* 手数（いま手に持っている 1 枚を含む） */
+
+  $('play-step').textContent = '問 ' + (S.round + 1) + ' / ' + PZ.ROUNDS;
+  $('q-num').textContent = p.target;
+  $('q-cond').textContent = p.mode === 'unsorted' ? 'ばらばらに置いてあります' : '小さい順に並んでいます';
+  $('m-move').textContent = moves;
+  $('m-lim').textContent = p.limit;
+  $('m-wrap').classList.toggle('warn', moves >= p.limit && !S.over);
+  $('m-left').textContent = (p.mode === 'unsorted') ? PZ.N - settled : Math.max(0, S.hi - S.lo + 1);
+
+  var nodes = el.cards.children;
+  for(i = 1; i <= PZ.N; i++){
+    var b = nodes[i-1], inRange = (p.mode === 'unsorted') ? true : (i >= S.lo && i <= S.hi);
+    b.classList.toggle('flip', !!flipped[i]);
+    b.classList.toggle('out', !inRange && !(S.pending === i));
+    b.classList.toggle('seen', p.mode === 'unsorted' && !!flipped[i] && S.pending !== i);
+    b.classList.toggle('now', S.pending === i);
+    b.classList.toggle('hit', !!flipped[i] && p.cards[i-1] === p.target && S.over);
+    b.disabled = S.over || !!S.pending || !!flipped[i] || (p.mode !== 'unsorted' && !inRange);
+    if(flipped[i]) b.querySelector('.n').textContent = p.cards[i-1];
+    el.idxs.children[i-1].classList.toggle('in', inRange && !flipped[i]);
+  }
+  /* 残っている範囲の帯 */
+  el.band.style.display = (p.mode === 'unsorted') ? 'none' : '';
+  var band = el.band.firstElementChild;
+  if(p.mode === 'unsorted' || S.lo > S.hi){ band.style.opacity = 0; }
+  else{
+    var a = nodes[S.lo-1], z = nodes[S.hi-1], base = el.cards.getBoundingClientRect();
+    var ra = a.getBoundingClientRect(), rz = z.getBoundingClientRect();
+    band.style.opacity = 1;
+    band.style.left = (ra.left - base.left) + 'px';
+    band.style.width = (rz.right - ra.left) + 'px';
+  }
+  $('band-lab').textContent = (p.mode === 'unsorted')
+    ? 'まだめくっていないカード ' + (PZ.N - settled) + ' 枚'
+    : (S.lo > S.hi ? '残っている範囲はありません' : '残っている範囲 ' + S.lo + ' 〜 ' + S.hi);
+
+  var can = !!S.pending && !S.over;
+  if(p.mode === 'unsorted'){
+    /* 左右と「ない」はいつでも押せます。押すと理由が出ます（罰はありません） */
+    $('a-l').disabled = S.over; $('a-r').disabled = S.over; $('a-n').disabled = S.over;
+    $('a-h').disabled = !can;
+  }else{
+    $('a-l').disabled = !can; $('a-r').disabled = !can; $('a-h').disabled = !can;
+    $('a-n').disabled = !!S.pending || S.over;
+  }
+}
+function drawHist(){
+  var box = $('histlist');
+  if(!S.hist.length){
+    box.innerHTML = '<li class="none">カードを 1 枚めくると、ここに手順が残ります。</li>';
+    return;
+  }
+  var h = '';
+  for(var i = 0; i < S.hist.length; i++){
+    var x = S.hist[i];
+    h += '<li><span class="k tnum">' + (i+1) + '</span><span class="m">'
+       + x.p + ' 枚目は <b>' + x.v + '</b>。' + x.what + '</span>'
+       + (x.range ? '<span class="rg">' + x.range + '</span>' : '') + '</li>';
+  }
+  box.innerHTML = h;
+  box.scrollTop = box.scrollHeight;
+}
+function say(html, cls){
+  el.say.className = 'say' + (cls ? ' ' + cls : '');
+  el.say.innerHTML = html;
+}
+function flip(p){
+  var moves = S.rec.replace(/0N/g, '').length / 2;
+  var v = S.pr.cards[p-1];
+  buzz(8);
+  /* 並んでいない列では、片側を捨てられません。めくったらそのまま次へ進みます */
+  if(S.pr.mode === 'unsorted' && v !== S.pr.target){
+    S.rec += String(p) + '-';
+    S.pending = 0;
+    S.hist.push({p:p, v:v, what:'さがす数ではありません。', range:''});
+    paint(); drawHist();
+    say('<span class="hl">' + v + '</span> が出ました。さがしているのは <b>' + S.pr.target
+      + '</b> です。並んでいないので、この 1 枚から他のカードのことは分かりません。'
+      + '次をめくってください。', '');
+    return;
+  }
+  S.pending = p;
+  paint();
+  if(moves + 1 >= S.pr.limit && S.pr.cards[p-1] !== S.pr.target){
+    say('<b>' + p + ' 枚目</b>は <span class="hl">' + v + '</span> でした。'
+      + 'さがす数とくらべて、次をえらんでください。<br>'
+      + 'これで手数は <span class="hl">' + (moves+1) + '</span> です。上限は ' + S.pr.limit + ' 手です。', '');
+  }else{
+    say('<b>' + p + ' 枚目</b>は <span class="hl">' + v + '</span> でした。'
+      + 'さがす数とくらべて、次をえらんでください。', '');
+  }
+}
+function choose(c){
+  var p = S.pr, pos = S.pending;
+  if(c === 'N'){
+    if(p.mode === 'absent' && S.lo > S.hi){ finishRound(S.rec + '0N'); return; }
+    if(p.mode === 'unsorted'){
+      say('<b>ばらばらの列では、まだ言えません。</b>めくっていないカードに何があるかは分かりません。'
+        + '全部めくるまで、無いとは言い切れません。', '');
+      return;
+    }
+    fail('残っている範囲が ' + S.lo + ' 〜 ' + S.hi + ' にあります。ここを調べ終えるまで、無いとは言えません。');
+    return;
+  }
+  /* ばらばらの列では、左右を捨てられません。ここは失敗にしません */
+  if(p.mode === 'unsorted' && (c === 'L' || c === 'R')){
+    say('<b>ばらばらなので、捨てられません。</b>' + (c === 'L' ? '左' : '右')
+      + 'に何があるかは、めくるまで分かりません。片側を捨てられるのは、並んでいる列だけです。', '');
+    return;
+  }
+  if(!pos) return;
+  var v = p.cards[pos-1];
+  if(v === p.target){
+    if(c !== 'H'){ fail('めくった <b>' + v + '</b> が、さがしている <b>' + p.target + '</b> そのものです。'); return; }
+    finishRound(S.rec + String(pos) + 'H'); return;
+  }
+  if(c === 'H'){ fail('めくった <b>' + v + '</b> は、さがしている <b>' + p.target + '</b> ではありません。'); return; }
+  if(p.mode === 'unsorted'){ /* ここには来ません */ return; }
+  var want = (v < p.target) ? 'L' : 'R';
+  if(c !== want){
+    fail('<b>' + v + '</b> は <b>' + p.target + '</b> より' + (v < p.target ? '小さい' : '大きい')
+       + 'ので、捨てるのは' + (v < p.target ? '左' : '右') + '側です。');
+    return;
+  }
+  S.rec += String(pos) + c;
+  S.pending = 0;
+  if(c === 'L') S.lo = Math.max(S.lo, pos + 1); else S.hi = Math.min(S.hi, pos - 1);
+  var moves = S.rec.length / 2;
+  S.hist.push({p:pos, v:v,
+               what:(v < p.target ? '小さいので左を捨てました。' : '大きいので右を捨てました。'),
+               range:(S.lo > S.hi ? '残り 0' : S.lo + '〜' + S.hi)});
+  paint(); drawHist();
+  if(S.lo > S.hi){
+    say('<b>' + v + '</b> は <b>' + p.target + '</b> より' + (v < p.target ? '小さい' : '大きい')
+      + 'ので、' + (v < p.target ? pos + ' 番目より左' : pos + ' 番目より右')
+      + 'は捨てられます。<b>残っている範囲がなくなりました。</b>', '');
+  }else if(moves >= p.limit){
+    say('<b>' + v + '</b> は <b>' + p.target + '</b> より' + (v < p.target ? '小さい' : '大きい')
+      + 'ので、残りは <span class="hl">' + S.lo + ' 〜 ' + S.hi + '</span> です。'
+      + 'これが最後の 1 手です。', '');
+  }else{
+    say('<b>' + v + '</b> は <b>' + p.target + '</b> より' + (v < p.target ? '小さい' : '大きい')
+      + 'ので、残りは <span class="hl">' + S.lo + ' 〜 ' + S.hi + '</span> です。', '');
+  }
+  if(S.lo > S.hi && p.mode !== 'absent'){
+    /* 目的があるのに範囲が空 = 手順を誤っています。ここには正しく進めば来ません */
+    fail('残りがなくなりました。捨てる側をまちがえています。');
+  }
+}
+function fail(why){
+  S.over = true; buzz([12, 60, 12]); paint();
+  say((why ? why + '<br>' : '') + '<b>1 問目からやり直します。</b>カードは新しく引き直します。', 'ng');
+  $('a-l').disabled = $('a-r').disabled = $('a-h').disabled = $('a-n').disabled = true;
+  setTimeout(function(){
+    S.nonce = PZ.newNonce(); S.recs = []; S.tally = []; startRound(0);
+  }, 2100);
+}
+function finishRound(rec){
+  var j = PZ.judge(S.pr, rec);
+  if(!j.ok){ fail(j.why); return; }
+  if(rec.slice(-2) === '0N') S.hist.push({p:'―', v:S.pr.target, what:'残りが無いので、この列には入っていません。', range:'残り 0'});
+  else if(S.pending) S.hist.push({p:S.pending, v:S.pr.cards[S.pending-1], what:'これがさがす数です。', range:''});
+  drawHist();
+  S.rec = rec; S.over = true; S.pending = 0; buzz(24);
+  S.recs.push(rec); S.tally.push(j.moves);
+  paint();
+  var p = S.pr, tail;
+  if(p.mode === 'unsorted')
+    tail = '<b>' + j.moves + ' 手</b>で見つかりました。ばらばらの列では、端から順にめくるほかにやり方がありません。';
+  else if(p.mode === 'absent')
+    tail = '<b>' + j.moves + ' 手</b>で、この列に無いと言い切れました。範囲が空になったことが根拠です。';
+  else
+    tail = '<b>' + j.moves + ' 手</b>で見つかりました。8 枚を端から順にめくると、最大 8 手かかります。';
+  say(tail, 'ok');
+  setTimeout(function(){
+    if(S.round + 1 < PZ.ROUNDS) startRound(S.round + 1);
+    else finishAll();
+  }, 1600);
+}
+function finishAll(){
+  S.code = PZ.encode(S.sid, S.nonce, S.recs);
+  store('algo.clear.' + S.lesson, '1');
+  $('code').textContent = S.code;
+  var mm = Math.round((Date.now() - S.startedAt) / 1000);
+  $('tally').innerHTML =
+      '<span>問1 <b>' + S.tally[0] + '</b> 手</span>'
+    + '<span>問2 <b>' + S.tally[1] + '</b> 手</span>'
+    + '<span>問3 <b>' + S.tally[2] + '</b> 手</span>'
+    + '<span>かかった時間 <b>' + Math.floor(mm/60) + '</b> 分 <b>' + (mm%60) + '</b> 秒</span>';
+  show('done');
+}
+
+/* ------------------------------------------------------------------ 起動 */
+function boot(){
+  el.cards = $('cards'); el.idxs = $('idxs'); el.band = $('band'); el.say = $('say');
+  initGate();
+  $('list-body').addEventListener('click', function(e){
+    var b = e.target.closest('.row'); if(!b || b.disabled) return;
+    startLesson(parseInt(b.getAttribute('data-lesson'), 10));
+  });
+  $('play-back').addEventListener('click', function(){ buildList(); show('list'); });
+  $('done-back').addEventListener('click', function(){ buildList(); show('list'); });
+  el.cards.addEventListener('click', function(e){
+    var b = e.target.closest('.card'); if(!b || b.disabled) return;
+    flip(parseInt(b.getAttribute('data-p'), 10));
+  });
+  [['a-l','L'],['a-r','R'],['a-h','H'],['a-n','N']].forEach(function(pair){
+    $(pair[0]).addEventListener('click', function(){ if(!S.over) choose(pair[1]); });
+  });
+  $('copy').addEventListener('click', function(){
+    var t = $('copy');
+    function done(){ t.textContent = 'コピーしました'; setTimeout(function(){ t.textContent = 'コードをコピーする'; }, 1800); }
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(S.code).then(done, pick);
+      }else pick();
+    }catch(e){ pick(); }
+    function pick(){
+      var r = document.createRange(); r.selectNodeContents($('code'));
+      var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      t.textContent = '選んだので、長押しでコピーしてください';
+    }
+  });
+  window.addEventListener('resize', function(){ if($('s-play').classList.contains('on')) paint(); });
+  show('gate');
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('./sw.js').catch(function(){});
+    });
+  }
+}
+if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+else boot();
+})();
+
+</script>
+</body>
+</html>

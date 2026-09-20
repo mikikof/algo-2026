@@ -1,0 +1,5 @@
+# 公開しないもの。中身の歯止めは check_public.py が別に数える
+_src/
+_grading/
+*.ipynb
+.DS_Store
