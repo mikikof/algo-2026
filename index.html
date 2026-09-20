@@ -53,11 +53,11 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .tnum{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
 
 /* ---- 画面の骨 ---- */
-.screen{display:none;min-height:100%;flex-direction:column}
-.screen.on{display:flex}
-/* ★ 演習の画面だけは画面の高さに閉じます。閉じないと、めくった順が伸びて
-   下の操作ボタンの裏へもぐり込みます（2026-09-20 に実物で確認）。dvh はアドレスバーぶんを含みません */
-#s-play.on{height:100vh;height:100dvh;overflow:hidden}
+.screen{display:none;flex-direction:column}
+/* ★ スマホでは「一枚」が前提です（本人 2026-09-21）。スクロールさせて逃がしません。
+   器は **svh**（ブラウザの枠が出ている状態の高さ）で決めます。dvh や vh で組むと、
+   枠が出た瞬間に下がはみ出します。万一あふれたときだけスクロールに落ちます（届かないより良い）。 */
+.screen.on{display:flex;height:100vh;height:100svh;overflow-y:auto;overscroll-behavior:contain}
 .wrap{padding:0 16px;max-width:520px;margin:0 auto;width:100%}
 
 .top{
@@ -75,10 +75,11 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .top .step{font-size:12.5px;color:var(--dim);flex:0 0 auto}
 
 /* ---- 入口 ---- */
-.gate{flex:1;display:flex;flex-direction:column;justify-content:center;padding:34px 16px calc(var(--bar) + 20px)}
-.mark{width:104px;height:92px;margin:0 auto 24px;display:block}
-.gate h2{margin:0 0 6px;text-align:center;font-size:23px;font-weight:700;letter-spacing:.02em}
-.gate .sub{margin:0 0 30px;text-align:center;color:var(--dim);font-size:13.5px}
+.gate{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;
+  padding:clamp(16px,3vh,34px) 16px calc(var(--bar) + clamp(12px,2.4vh,20px))}
+.mark{width:clamp(74px,13vh,104px);height:auto;margin:0 auto clamp(14px,2.8vh,24px);display:block}
+.gate h2{margin:0 0 6px;text-align:center;font-size:clamp(19px,3.2vh,23px);font-weight:700;letter-spacing:.02em}
+.gate .sub{margin:0 0 clamp(16px,3.4vh,30px);text-align:center;color:var(--dim);font-size:13.5px}
 .field{display:block;margin:0 0 8px;font-size:12.5px;color:var(--dim)}
 input[type=text]{
   width:100%;padding:15px 16px;border-radius:var(--r2);
@@ -106,63 +107,78 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.55
 .ghost{background:var(--glass);border:1px solid var(--line2);color:var(--ink);box-shadow:none}
 
 /* ---- 一覧 ---- */
-.list{flex:1;padding:16px 16px calc(var(--bar) + 26px)}
-.grp{margin:0 0 22px}
-.grp h3{
-  margin:0 0 10px;font-size:11.5px;font-weight:650;letter-spacing:.16em;color:var(--faint);
-  display:flex;align-items:center;gap:9px
-}
-.grp h3::after{content:"";flex:1;height:1px;background:var(--line)}
+.list{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;
+  padding:clamp(10px,2vh,18px) 16px calc(var(--bar) + clamp(10px,2vh,18px))}
+.lab-map{margin-top:clamp(13px,3vh,26px)}
+.lab-s{font-size:11px;letter-spacing:.16em;color:var(--faint);margin:0 2px clamp(6px,1.2vh,9px);
+  display:flex;align-items:center;gap:9px}
+.lab-s::after{content:"";flex:1;height:1px;background:var(--line)}
+
+/* いま解ける回。ここだけ大きく出します */
 .row{
   display:flex;align-items:center;gap:13px;width:100%;text-align:left;
-  padding:13px 14px;margin:0 0 8px;border-radius:var(--r);
-  background:var(--glass);border:1px solid var(--line);
-  transition:border-color .18s,transform .12s,background .18s
+  padding:clamp(11px,2vh,15px) 14px;border-radius:var(--r);
+  background:rgba(166,145,242,.10);border:1px solid rgba(166,145,242,.42);
+  transition:transform .12s
 }
 .row:active{transform:scale(.99)}
-.row.ready{border-color:rgba(166,145,242,.42);background:rgba(166,145,242,.10)}
-.row.soon{opacity:.46}
 .row .no{
-  flex:0 0 auto;width:36px;height:36px;border-radius:11px;display:grid;place-items:center;
-  font-size:14.5px;font-weight:700;background:rgba(255,255,255,.07);color:var(--dim);
-  font-variant-numeric:tabular-nums
+  flex:0 0 auto;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;
+  font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;
+  background:linear-gradient(135deg,var(--violet),var(--violet-d));color:#0B0A18
 }
-.row.ready .no{background:linear-gradient(135deg,var(--violet),var(--violet-d));color:#0B0A18}
 .row.clear .no{background:linear-gradient(135deg,var(--green),#1FA07A);color:#04231A}
 .row .tx{flex:1;min-width:0}
 /* ★ span は inline なので、題が短いと難所が同じ行にくっつきます。block にします */
-.row .tt{display:block;font-size:14.5px;font-weight:600;letter-spacing:.01em}
+.row .tt{display:block;font-size:15px;font-weight:650;letter-spacing:.01em}
 .row .ds{display:block;font-size:12px;color:var(--faint);margin-top:2px;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.row .go{flex:0 0 auto;font-size:11.5px;color:var(--faint)}
-.row.ready .go{color:var(--violet)}
+.row .go{flex:0 0 auto;font-size:12px;color:var(--violet)}
+
+/* 15 回の地図。1 グループ 1 行に収め、回は番号の升で置きます */
+.map{display:flex;flex-direction:column;gap:clamp(3px,.8vh,7px);margin:0}
+.mrow{display:flex;align-items:center;gap:8px}
+.mrow .gname{flex:0 0 68px;font-size:11px;color:var(--faint);text-align:right;letter-spacing:.02em}
+.mrow .tiles{display:flex;gap:5px;flex-wrap:nowrap}
+.tile{
+  width:clamp(40px,6.2vh,46px);height:clamp(40px,6.2vh,46px);border-radius:11px;
+  display:grid;place-items:center;font-size:13px;font-weight:650;font-variant-numeric:tabular-nums;
+  background:rgba(255,255,255,.055);border:1px solid var(--line);color:var(--faint);
+  transition:transform .12s,border-color .18s
+}
+.tile:active{transform:scale(.94)}
+.tile.ready{background:linear-gradient(135deg,var(--violet),var(--violet-d));color:#0B0A18;border-color:transparent}
+.tile.clear{background:linear-gradient(135deg,var(--green),#1FA07A);color:#04231A;border-color:transparent}
+.tile.sel{border-color:var(--violet);color:var(--ink)}
+.caption{margin:clamp(8px,1.6vh,12px) 2px 0;min-height:2.6em;font-size:12.5px;color:var(--dim);line-height:1.6}
+.caption b{color:var(--ink);font-weight:650}
 
 /* ---- 演習 ---- */
-.play{flex:1;min-height:0;display:flex;flex-direction:column;padding:12px 16px 0}
-.quest{text-align:center;padding:10px 0 4px}
+.play{flex:1;min-height:0;display:flex;flex-direction:column;padding:clamp(6px,1.4vh,12px) 16px 0}
+.quest{text-align:center;padding:clamp(4px,1.2vh,10px) 0 4px}
 .quest .lab{font-size:11.5px;letter-spacing:.16em;color:var(--faint)}
 .quest .big-num{
-  font-size:46px;font-weight:750;line-height:1.1;letter-spacing:.01em;
+  font-size:clamp(32px,5.6vh,46px);font-weight:750;line-height:1.1;letter-spacing:.01em;
   font-variant-numeric:tabular-nums;
   background:linear-gradient(135deg,#FFFFFF 10%,var(--violet) 95%);
   -webkit-background-clip:text;background-clip:text;color:transparent;
 }
 .quest .cond{font-size:13px;color:var(--dim);margin-top:2px}
 
-.meters{display:flex;gap:8px;justify-content:center;margin:12px 0 4px}
+.meters{display:flex;gap:8px;justify-content:center;margin:clamp(6px,1.4vh,12px) 0 4px}
 .meter{
-  display:flex;align-items:baseline;gap:6px;padding:6px 12px;border-radius:999px;
+  display:flex;align-items:baseline;gap:6px;padding:clamp(4px,.8vh,6px) 12px;border-radius:999px;
   background:var(--glass);border:1px solid var(--line);font-size:12px;color:var(--dim)
 }
 .meter b{font-size:15px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
 .meter.warn{border-color:rgba(244,174,102,.5);background:rgba(244,174,102,.12)}
 .meter.warn b{color:var(--amber)}
 
-.board{margin:16px 0 0}
+.board{margin:clamp(8px,1.8vh,16px) 0 0}
 .cards{display:grid;grid-template-columns:repeat(8,1fr);gap:3px;margin:0 -8px}
 /* 8 枚を 1 列に置くので、1 枚の幅は 360px の端末でも 40px を割らないようにします */
 .card{
-  position:relative;aspect-ratio:41/64;perspective:640px;padding:0;
+  position:relative;height:clamp(46px,8.2vh,66px);perspective:640px;padding:0;
   transition:opacity .28s,transform .28s,filter .28s
 }
 .inner{
@@ -213,7 +229,8 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.55
 .bandlab{margin-top:7px;text-align:center;font-size:11.5px;color:var(--faint)}
 
 .say{
-  margin:16px 0 0;padding:13px 15px;border-radius:var(--r2);min-height:74px;
+  margin:clamp(8px,1.8vh,16px) 0 0;padding:clamp(9px,1.6vh,13px) 15px;border-radius:var(--r2);
+  min-height:clamp(46px,8.6vh,74px);
   background:var(--glass);border:1px solid var(--line);
   font-size:13.5px;line-height:1.72;color:var(--dim)
 }
@@ -221,15 +238,17 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.55
 .say .hl{color:var(--amber);font-weight:650;font-variant-numeric:tabular-nums}
 .say.ok{border-color:rgba(64,220,166,.42);background:rgba(64,220,166,.10);color:var(--ink)}
 .say.ng{border-color:rgba(240,122,140,.42);background:rgba(240,122,140,.10);color:var(--ink)}
+/* めくった順が 1 行も入らない端末では、その場所を実況にまわします */
+.play.nohist .say{flex:1 1 auto;min-height:0;overflow-y:auto}
 
 .acts{
   flex:0 0 auto;margin-top:auto;
-  padding:12px 16px var(--bar);
+  padding:clamp(7px,1.4vh,12px) 16px var(--bar);
   background:var(--bg);border-top:1px solid var(--line);
 }
 .acts .pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .act{
-  padding:14px 8px;border-radius:var(--r2);text-align:center;
+  padding:clamp(8px,1.6vh,14px) 8px;border-radius:var(--r2);text-align:center;
   font-size:14px;font-weight:600;letter-spacing:.01em;
   background:var(--glass);border:1px solid var(--line2);color:var(--ink);
   transition:transform .12s,opacity .18s,border-color .18s,background .18s
@@ -240,19 +259,22 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.55
 .act.h{border-color:rgba(64,220,166,.34);background:rgba(64,220,166,.09)}
 .act.n{border-color:rgba(244,174,102,.30);background:rgba(244,174,102,.07)}
 .act small{display:block;font-size:11px;color:var(--faint);font-weight:400;margin-top:1px}
+/* 背の低い端末では、ボタンの添え書きを畳みます（押す所の大きさを先に守ります） */
+@media (max-height:620px){ .act small{display:none} .act{font-size:13.5px} }
 
 /* ---- 提出 ---- */
-.done{flex:1;display:flex;flex-direction:column;justify-content:center;padding:28px 16px calc(var(--bar) + 20px);text-align:center}
-.seal{width:64px;height:64px;margin:0 auto 16px}
-.done h2{margin:0 0 4px;font-size:21px;font-weight:700}
-.done .sub{color:var(--dim);font-size:13.5px;margin:0 0 22px}
+.done{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;
+  padding:clamp(14px,2.6vh,28px) 16px calc(var(--bar) + clamp(12px,2.2vh,20px));text-align:center}
+.seal{width:clamp(44px,8vh,64px);height:auto;margin:0 auto clamp(9px,1.8vh,16px)}
+.done h2{margin:0 0 4px;font-size:clamp(17px,3vh,21px);font-weight:700}
+.done .sub{color:var(--dim);font-size:13.5px;margin:0 0 clamp(12px,2.4vh,22px)}
 .codebox{
   padding:15px 14px;border-radius:var(--r2);margin-bottom:10px;
   background:rgba(166,145,242,.10);border:1px solid rgba(166,145,242,.40);
   font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
   font-size:13px;line-height:1.6;word-break:break-all;text-align:left;color:var(--ink)
 }
-.tally{display:flex;gap:8px;justify-content:center;margin:0 0 20px;flex-wrap:wrap}
+.tally{display:flex;gap:8px;justify-content:center;margin:0 0 clamp(11px,2.2vh,20px);flex-wrap:wrap}
 .tally span{padding:5px 11px;border-radius:999px;background:var(--glass);border:1px solid var(--line);
   font-size:11.5px;color:var(--dim)}
 .tally b{color:var(--ink);font-variant-numeric:tabular-nums}
@@ -263,14 +285,14 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.55
 .card.seen .face.f .n{color:var(--dim)}
 
 /* ---- めくった順（基準版で空いていた画面の下半分を、手順の記録で埋めます） ---- */
-.hist{flex:1;min-height:0;display:flex;flex-direction:column;margin:12px 0 0}
+.hist{flex:1;min-height:0;display:flex;flex-direction:column;margin:clamp(6px,1.4vh,12px) 0 0}
 .hist .lab{font-size:11px;letter-spacing:.16em;color:var(--faint);margin:0 2px 7px;
   display:flex;align-items:center;gap:9px}
 .hist .lab::after{content:"";flex:1;height:1px;background:var(--line)}
 .hist ol{list-style:none;margin:0;padding:0 0 4px;flex:1;min-height:0;
   overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 .hist li{
-  display:flex;align-items:center;gap:9px;padding:8px 11px;margin-bottom:5px;
+  display:flex;align-items:center;gap:9px;padding:clamp(5px,1vh,8px) 11px;margin-bottom:4px;
   border-radius:11px;background:rgba(255,255,255,.035);border:1px solid var(--line);
   font-size:12.5px;color:var(--dim);animation:slip .3s ease-out
 }
@@ -282,6 +304,22 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.55
 .hist li b{color:var(--ink);font-weight:650;font-variant-numeric:tabular-nums}
 .hist li .rg{flex:0 0 auto;font-size:11.5px;color:var(--violet);font-variant-numeric:tabular-nums}
 .hist .none{padding:11px 2px;font-size:12.5px;color:var(--faint)}
+.hist li.more{justify-content:center;background:none;border-style:dashed;
+  border-color:var(--line);color:var(--faint);font-size:11.5px;padding:4px 11px}
+
+
+/* ★ vh はブラウザの枠を含まない高さなので、枠が出ている間は実際より大きく見積もります。
+   svh が使える環境では、そちらで測り直します（枠が出ている状態がいちばん狭い） */
+@supports (height: 100svh){
+  .mark{width:clamp(74px,13svh,104px)}
+  .gate h2{font-size:clamp(19px,3.2svh,23px)}
+  .tile{width:clamp(40px,6.2svh,46px);height:clamp(40px,6.2svh,46px)}
+  .quest .big-num{font-size:clamp(32px,5.6svh,46px)}
+  .card{height:clamp(46px,8.2svh,66px)}
+  .say{min-height:clamp(46px,8.6svh,74px)}
+  .seal{width:clamp(44px,8svh,64px)}
+  .done h2{font-size:clamp(17px,3svh,21px)}
+}
 
 </style>
 </head>
@@ -634,33 +672,60 @@ function initGate(){
 }
 
 /* ---- 一覧 ---- */
+function lessonOf(n){
+  for(var i = 0; i < GROUPS.length; i++){
+    for(var j = 0; j < GROUPS[i].items.length; j++){
+      if(GROUPS[i].items[j][0] === n) return GROUPS[i].items[j];
+    }
+  }
+  return null;
+}
+function cap(n){
+  var e = $('cap'), it = lessonOf(n);
+  if(!e) return;
+  e.innerHTML = it ? ('<b>第' + it[0] + '回　' + it[1] + '</b><br>' + it[2]
+                      + (READY[it[0]] ? '' : '　／　準備中')) : '';
+}
 function buildList(){
+  /* ★ スマホでは一枚に収めます。15 回を縦に積むと、どの端末でも収まりません（2026-09-21）。
+     解ける回だけを大きく出し、残りは番号の升で 1 グループ 1 行に並べます。 */
+  var ready = null;
+  GROUPS.forEach(function(g){ g.items.forEach(function(it){ if(READY[it[0]]) ready = it; }); });
   var h = '';
+  if(ready){
+    var cl = store('algo.clear.' + ready[0]) ? ' clear' : '';
+    h += '<div class="lab-s">いま解ける回</div>'
+       + '<button class="row' + cl + '" data-lesson="' + ready[0] + '">'
+       + '<span class="no tnum">' + ready[0] + '</span>'
+       + '<span class="tx"><span class="tt">' + ready[1] + '</span>'
+       + '<span class="ds">' + ready[2] + '</span></span>'
+       + '<span class="go">' + (cl ? 'もう一度' : '解く') + '</span></button>';
+  }
+  h += '<div class="lab-s lab-map">15 回</div><div class="map">';
   GROUPS.forEach(function(g){
-    h += '<section class="grp"><h3>' + g.name + '</h3>';
+    h += '<div class="mrow"><span class="gname">' + g.name + '</span><span class="tiles">';
     g.items.forEach(function(it){
-      var n = it[0], ready = !!READY[n];
-      var clear = store('algo.clear.' + n) ? ' clear' : '';
-      h += '<button class="row ' + (ready ? 'ready' : 'soon') + clear + '" data-lesson="' + n + '"'
-        + (ready ? '' : ' disabled') + '>'
-        + '<span class="no tnum">' + n + '</span>'
-        + '<span class="tx"><span class="tt">' + it[1] + '</span>'
-        + '<span class="ds">' + it[2] + '</span></span>'
-        + '<span class="go">' + (ready ? (clear ? '通過' : '解く') : '準備中') + '</span>'
-        + '</button>';
+      var n = it[0], k = '';
+      if(store('algo.clear.' + n)) k = ' clear';
+      else if(READY[n]) k = ' ready';
+      h += '<button class="tile tnum' + k + '" data-n="' + n + '">' + n + '</button>';
     });
-    h += '</section>';
+    h += '</span></div>';
   });
+  h += '</div><div class="caption" id="cap"></div>';
   $('list-body').innerHTML = h;
   $('list-sid').textContent = S.sid;
+  cap(ready ? ready[0] : 0);
 }
 
 /* ---- 演習 ---- */
 function startLesson(n){
   S.lesson = n; S.nonce = PZ.newNonce(); S.recs = []; S.tally = [];
   S.startedAt = Date.now();
-  startRound(0);
+  /* ★ 先に画面を出してから組みます。出す前に測ると、高さが全部 0 になり、
+     「入らない」と判定して、入るはずの端末でも畳んでしまいます（2026-09-21 に実測）。 */
   show('play');
+  startRound(0);
 }
 function startRound(r){
   S.round = r;
@@ -749,6 +814,7 @@ function drawHist(){
   var box = $('histlist');
   if(!S.hist.length){
     box.innerHTML = '<li class="none">カードを 1 枚めくると、ここに手順が残ります。</li>';
+    fitHist();
     return;
   }
   var h = '';
@@ -759,11 +825,56 @@ function drawHist(){
        + (x.range ? '<span class="rg">' + x.range + '</span>' : '') + '</li>';
   }
   box.innerHTML = h;
-  box.scrollTop = box.scrollHeight;
+  fitHist();
+}
+/* ★ スマホは一枚が前提なので、めくった順が入り切らないときはスクロールさせず、
+   **古い手から畳んで**件数だけ残します（本人 2026-09-21）。
+   問1 で 8 手めくると、背の低い端末では 2〜4 手ぶん溢れます。 */
+function fitHist(){
+  var hist = $('hist'), box = $('histlist'), play = document.querySelector('.play');
+  if(!box || !hist) return;
+  hist.style.display = '';
+  if(play) play.classList.remove('nohist');
+  var old = box.querySelector('.more');
+  if(old) box.removeChild(old);
+  var lis = box.querySelectorAll('li');
+  for(var i = 0; i < lis.length; i++) lis[i].style.display = '';
+  function foldAll(){
+    hist.style.display = 'none';
+    if(play) play.classList.add('nohist');
+  }
+  if(!lis.length){ foldAll(); return; }
+
+  /* 1 行も入らない端末では、めくった順ごと畳んで、実況に場所をゆずります */
+  var one = lis[lis.length-1].getBoundingClientRect().height || 34;
+  if(box.clientHeight < one - 2){ foldAll(); return; }
+  if(box.scrollHeight <= box.clientHeight + 1) return;
+
+  var hidden = 0, k = 0;
+  while(box.scrollHeight > box.clientHeight + 1 && k < lis.length - 1){
+    lis[k].style.display = 'none'; hidden++; k++;
+  }
+  if(!hidden){ foldAll(); return; }   /* 1 行しかないのに入らない場合 */
+  var note = document.createElement('li');
+  note.className = 'more';
+  note.textContent = 'これより前の ' + hidden + ' 手は畳んであります';
+  box.insertBefore(note, box.firstChild);
+  /* 注記そのものが場所を取るので、足したあとにもう一度測ります */
+  while(box.scrollHeight > box.clientHeight + 1 && k < lis.length - 1){
+    lis[k].style.display = 'none'; hidden++; k++;
+    note.textContent = 'これより前の ' + hidden + ' 手は畳んであります';
+  }
+  if(box.scrollHeight > box.clientHeight + 1){
+    box.removeChild(note);
+    foldAll();          /* 畳んでも入らないなら、節ごと畳みます */
+  }
 }
 function say(html, cls){
   el.say.className = 'say' + (cls ? ' ' + cls : '');
   el.say.innerHTML = html;
+  /* ★ 実況の長さで器の高さが変わるので、書いたあとに測り直します。
+     書く前に測ると、入ると思った行が入らなくなります（2026-09-21 に実測）。 */
+  fitHist();
 }
 function flip(p){
   var moves = S.rec.replace(/0N/g, '').length / 2;
@@ -896,8 +1007,18 @@ function boot(){
   el.cards = $('cards'); el.idxs = $('idxs'); el.band = $('band'); el.say = $('say');
   initGate();
   $('list-body').addEventListener('click', function(e){
-    var b = e.target.closest('.row'); if(!b || b.disabled) return;
-    startLesson(parseInt(b.getAttribute('data-lesson'), 10));
+    var t = e.target.closest('.tile');
+    if(t){
+      var n = parseInt(t.getAttribute('data-n'), 10);
+      var all = $('list-body').querySelectorAll('.tile');
+      for(var i = 0; i < all.length; i++) all[i].classList.remove('sel');
+      t.classList.add('sel');
+      cap(n);
+      if(READY[n]) startLesson(n);
+      return;
+    }
+    var b = e.target.closest('.row');
+    if(b && !b.disabled) startLesson(parseInt(b.getAttribute('data-lesson'), 10));
   });
   $('play-back').addEventListener('click', function(){ buildList(); show('list'); });
   $('done-back').addEventListener('click', function(){ buildList(); show('list'); });
@@ -922,7 +1043,9 @@ function boot(){
       t.textContent = '選んだので、長押しでコピーしてください';
     }
   });
-  window.addEventListener('resize', function(){ if($('s-play').classList.contains('on')) paint(); });
+  window.addEventListener('resize', function(){
+    if($('s-play').classList.contains('on')){ paint(); fitHist(); }
+  });
   show('gate');
   if('serviceWorker' in navigator){
     window.addEventListener('load', function(){
