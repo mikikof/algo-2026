@@ -33,8 +33,8 @@
   --rose:#FF7E92; --rose-g:rgba(255,126,146,.40);
   --gray:#39405C;
 
-  --r:18px; --r2:13px;
-  --bar:calc(env(safe-area-inset-bottom,0px) + 10px);
+  --r:18px; --r2:13px; --col:560px;
+  --bar:calc(env(safe-area-inset-bottom,0px) + 14px);
 
   /* 動きの型 */
   --e-out:cubic-bezier(.22,1,.36,1);
@@ -73,13 +73,17 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .screen{display:none;flex-direction:column}
 /* ★ スマホは「一枚」が前提です（本人 2026-09-21）。器は svh（枠が出ている状態の高さ）で決めます。
    万一あふれたときだけスクロールに落ちます（届かないより良い）。 */
-.screen.on{display:flex;height:100vh;height:100svh;overflow-y:auto;overscroll-behavior:contain;
+.screen.on{display:flex;overflow-y:auto;overscroll-behavior:contain;
+  height:100vh;height:100svh;height:var(--vh,100svh);
   animation:scr .42s var(--e-out) both}
+/* ★ 横長の器（タブレット・PC）では、中央に 1 本の列を立てます。
+   立てないとカードが 1 枚 140px に伸び、全体が間延びします */
+.screen.on > *{width:100%;max-width:var(--col);margin-left:auto;margin-right:auto}
 @keyframes scr{from{opacity:0;transform:translateY(10px) scale(.992)}to{opacity:1;transform:none}}
 .wrap{padding:0 16px;max-width:520px;margin:0 auto;width:100%}
 
 .top{
-  position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:10px;
+  position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:10px;flex:0 0 auto;
   padding:calc(env(safe-area-inset-top,0px) + 10px) 14px 10px;
   background:rgba(7,8,15,.62);backdrop-filter:blur(20px) saturate(140%);
   -webkit-backdrop-filter:blur(20px) saturate(140%);
@@ -372,6 +376,9 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
   background:linear-gradient(180deg,rgba(7,8,15,0),rgba(7,8,15,.92) 22%);
   border-top:1px solid var(--line)}
 .acts .pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+/* ★ button は既定で内容の幅です。1 つだけ置いた行は、指定しないと伸びません
+   （2026-09-21 に「3 つ目の回答がない」と指摘されました） */
+.acts > .act{display:block;width:100%}
 .act{
   position:relative;overflow:hidden;
   padding:clamp(8px,1.6vh,14px) 8px;border-radius:var(--r2);text-align:center;
@@ -1473,7 +1480,18 @@ function finishAll(){
 }
 
 /* ------------------------------------------------------------------ 起動 */
+/* ★ 器の高さは実測します。`100svh` を知らない端末では `100vh` に落ち、
+   iOS ではブラウザの枠のぶん下がはみ出して、操作ボタンが見えなくなります（2026-09-21 の指摘）。 */
+function setVH(){
+  var h = 0;
+  try{ h = (window.visualViewport && window.visualViewport.height) || window.innerHeight; }catch(e){ h = window.innerHeight; }
+  if(h > 0) document.documentElement.style.setProperty('--vh', Math.round(h) + 'px');
+}
 function boot(){
+  setVH();
+  window.addEventListener('resize', setVH);
+  window.addEventListener('orientationchange', function(){ setTimeout(setVH, 260); });
+  try{ if(window.visualViewport){ window.visualViewport.addEventListener('resize', setVH); } }catch(e){}
   el.cards = $('cards'); el.idxs = $('idxs'); el.band = $('band'); el.say = $('say');
   el.fx = $('fx'); el.board = $('board');
   initGate();
@@ -1515,6 +1533,7 @@ function boot(){
     }
   });
   window.addEventListener('resize', function(){
+    setVH();
     if($('s-play').classList.contains('on')){ paint(); fitHist(); }
   });
   show('gate');
