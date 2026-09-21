@@ -23,17 +23,24 @@
    ========================================================================== */
 :root{
   --bg:#07080F; --bg2:#2A1A7A; --bg3:#0B3358;
-  --ink:#F2F4FF; --dim:#9AA2C8; --faint:#646C92;
-  --line:rgba(255,255,255,.09); --line2:rgba(255,255,255,.17);
-  --glass:rgba(255,255,255,.05);
+  --ink:#F4F6FF; --dim:#C8CFEA; --faint:#9BA5CB;
+  --line:rgba(255,255,255,.14); --line2:rgba(255,255,255,.26);
+  --glass:rgba(255,255,255,.065);
 
   --violet:#B7A4FF; --violet-d:#6A4BD6; --violet-g:rgba(183,164,255,.42);
   --amber:#FFBE73; --amber-g:rgba(255,190,115,.45);
   --green:#3EE7AE; --green-g:rgba(62,231,174,.45);
   --rose:#FF7E92; --rose-g:rgba(255,126,146,.40);
-  --gray:#39405C;
+  --gray:#7A84AD;
 
   --r:18px; --r2:13px; --col:560px;
+
+  /* 字の系統。和文はゴシック、数字は丸ゴシック系の等幅数字で役割を分ける。
+     外から落とさない（オフラインで動くため）ので、端末にある face だけで組む。
+     ★ 細さの正体は face ではなくウェイトと色。本文 500 / ラベル 700 / 見出し 800 で当てる */
+  --f-ui:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP","Yu Gothic Medium","Segoe UI",Roboto,sans-serif;
+  --f-num:ui-rounded,"SF Pro Rounded",-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+  --f-mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
   --bar:calc(env(safe-area-inset-bottom,0px) + 14px);
 
   /* 動きの型 */
@@ -46,12 +53,16 @@
 html,body{margin:0;padding:0;height:100%}
 body{
   background:var(--bg); color:var(--ink);
-  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP","Yu Gothic",sans-serif;
-  font-size:15px; line-height:1.7; letter-spacing:.01em;
-  -webkit-font-smoothing:antialiased; overscroll-behavior:none;
+  font-family:var(--f-ui);
+  font-size:16px; font-weight:500; line-height:1.72; letter-spacing:.012em;
+  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+  text-rendering:optimizeLegibility; overscroll-behavior:none;
 }
 button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
-.tnum{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+.tnum{font-family:var(--f-num);font-variant-numeric:tabular-nums;
+  font-feature-settings:"tnum" 1,"case" 1;letter-spacing:-.005em}
+/* 罫つきのキッカー。小さい字ほど、太く・広く・明るくする */
+.kick{font-size:12.5px;font-weight:700;letter-spacing:.22em;color:var(--faint)}
 
 /* ---- 地。奥でゆっくり動く光と、粒と、周縁の落ち ---- */
 .bg{position:fixed;inset:0;z-index:-2;pointer-events:none;overflow:hidden;background:#07080F}
@@ -93,9 +104,10 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
   display:grid;place-items:center;flex:0 0 auto;transition:transform var(--t-f) var(--e-out)}
 .top .back:active{transform:scale(.9)}
 .top .back svg{width:16px;height:16px}
-.top h1{margin:0;font-size:15px;font-weight:650;letter-spacing:.03em;flex:1;min-width:0;
+.top h1{margin:0;font-size:17px;font-weight:750;letter-spacing:.035em;flex:1;min-width:0;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.top .step{font-size:12.5px;color:var(--dim);flex:0 0 auto;font-variant-numeric:tabular-nums}
+.top .step{font-size:14px;font-weight:700;letter-spacing:.06em;color:var(--dim);flex:0 0 auto;
+  font-family:var(--f-num);font-variant-numeric:tabular-nums}
 
 /* ---- 入口 ---- */
 .gate{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;
@@ -111,26 +123,27 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .mark .cut.gone{transform-origin:100% 50%;animation:cutout .55s var(--e-out) .62s both}
 @keyframes cutin{from{transform:scaleX(0);opacity:0}to{transform:scaleX(1);opacity:1}}
 @keyframes cutout{from{transform:scaleX(1);opacity:.8}to{transform:scaleX(.08);opacity:.5}}
-.gate h2{margin:0 0 6px;text-align:center;font-size:clamp(20px,3.4vh,25px);font-weight:750;letter-spacing:.03em}
-.gate .sub{margin:0 0 clamp(16px,3.4vh,30px);text-align:center;color:var(--dim);font-size:13.5px}
-.field{display:block;margin:0 0 8px;font-size:12.5px;color:var(--dim);letter-spacing:.06em}
+.gate h2{margin:0 0 7px;text-align:center;font-size:clamp(22px,3.9vh,29px);font-weight:800;letter-spacing:.035em}
+.gate .sub{margin:0 0 clamp(16px,3.4vh,30px);text-align:center;color:var(--dim);font-size:15px;font-weight:550}
+.field{display:block;margin:0 0 9px;font-size:13.5px;font-weight:700;color:var(--dim);letter-spacing:.14em}
 input[type=text]{
   width:100%;padding:15px 16px;border-radius:var(--r2);
   background:rgba(255,255,255,.055);border:1px solid var(--line2);color:var(--ink);
-  font-size:20px;letter-spacing:.18em;font-variant-numeric:tabular-nums;
+  font-size:23px;font-weight:700;letter-spacing:.18em;
+  font-family:var(--f-num);font-variant-numeric:tabular-nums;
   text-transform:uppercase;outline:none;transition:border-color var(--t),box-shadow var(--t),background var(--t)
 }
 input[type=text]:focus{border-color:var(--violet);box-shadow:0 0 0 4px var(--violet-g);background:rgba(183,164,255,.07)}
 /* ★ text-transform はプレースホルダにも効きます。効かせると、まだ何も打っていないのに
    欄が「AAA26217」と見え、下の説明（例 aaa26217）とも食い違います */
 input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;letter-spacing:.12em}
-.hint{margin:9px 2px 0;font-size:12.5px;color:var(--faint);min-height:1.7em}
+.hint{margin:9px 2px 0;font-size:13.5px;font-weight:550;color:var(--faint);min-height:1.7em}
 .hint.ng{color:var(--rose)}
 
 /* ---- 大きなボタン ---- */
 .big{
   position:relative;display:block;width:100%;padding:16px;border-radius:var(--r2);overflow:hidden;
-  font-size:16px;font-weight:700;text-align:center;letter-spacing:.05em;
+  font-size:17.5px;font-weight:800;text-align:center;letter-spacing:.06em;
   background:linear-gradient(135deg,var(--violet) 0%,var(--violet-d) 100%);
   color:#0A0718;box-shadow:0 10px 30px -12px var(--violet-g),inset 0 1px 0 rgba(255,255,255,.34);
   transition:transform var(--t-f) var(--e-out),opacity var(--t),box-shadow var(--t)
@@ -149,7 +162,7 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
 .list{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;
   padding:clamp(10px,2vh,18px) 16px calc(var(--bar) + clamp(10px,2vh,18px))}
 .lab-map{margin-top:clamp(13px,3vh,26px)}
-.lab-s{font-size:11px;letter-spacing:.2em;color:var(--faint);margin:0 2px clamp(6px,1.2vh,9px);
+.lab-s{font-size:12.5px;font-weight:700;letter-spacing:.22em;color:var(--faint);margin:0 2px clamp(6px,1.2vh,9px);
   display:flex;align-items:center;gap:9px}
 .lab-s::after{content:"";flex:1;height:1px;background:var(--line)}
 
@@ -169,7 +182,7 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
 @keyframes pop-in{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:none}}
 .row .no{
   flex:0 0 auto;width:42px;height:42px;border-radius:13px;display:grid;place-items:center;
-  font-size:17px;font-weight:750;font-variant-numeric:tabular-nums;
+  font-size:19px;font-weight:800;font-family:var(--f-num);font-variant-numeric:tabular-nums;
   background:linear-gradient(135deg,var(--violet),var(--violet-d));color:#0A0718;
   box-shadow:0 6px 18px -8px var(--violet-g),inset 0 1px 0 rgba(255,255,255,.4)
 }
@@ -177,20 +190,21 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
   box-shadow:0 6px 18px -8px var(--green-g),inset 0 1px 0 rgba(255,255,255,.4)}
 .row .tx{flex:1;min-width:0}
 /* ★ span は inline なので、題が短いと難所が同じ行にくっつきます。block にします */
-.row .tt{display:block;font-size:15.5px;font-weight:700;letter-spacing:.02em}
-.row .ds{display:block;font-size:12px;color:var(--dim);margin-top:2px;
+.row .tt{display:block;font-size:17px;font-weight:800;letter-spacing:.025em}
+.row .ds{display:block;font-size:13.5px;font-weight:550;color:var(--dim);margin-top:3px;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.row .go{flex:0 0 auto;font-size:12px;color:var(--violet);font-weight:650}
+.row .go{flex:0 0 auto;font-size:13.5px;color:var(--violet);font-weight:800;letter-spacing:.04em}
 
 .map{display:flex;flex-direction:column;gap:clamp(3px,.8vh,7px);margin:0}
 .mrow{display:flex;align-items:center;gap:8px}
-.mrow .gname{flex:0 0 78px;white-space:nowrap;font-size:11px;color:var(--faint);
-  text-align:right;letter-spacing:.02em}
+.mrow .gname{flex:0 0 84px;white-space:nowrap;font-size:12.5px;font-weight:700;color:var(--faint);
+  text-align:right;letter-spacing:.04em}
 .mrow .tiles{display:flex;gap:5px;flex-wrap:nowrap}
 .tile{
   width:clamp(40px,6.2vh,46px);height:clamp(40px,6.2vh,46px);border-radius:12px;
-  display:grid;place-items:center;font-size:13.5px;font-weight:650;font-variant-numeric:tabular-nums;
-  background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--faint);
+  display:grid;place-items:center;font-size:15px;font-weight:800;
+  font-family:var(--f-num);font-variant-numeric:tabular-nums;
+  background:rgba(255,255,255,.055);border:1px solid var(--line);color:var(--dim);
   transition:transform var(--t-f) var(--e-spring),border-color var(--t),color var(--t);
   animation:pop-in .42s var(--e-spring) both
 }
@@ -200,38 +214,39 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
 @keyframes beat{0%,100%{box-shadow:0 6px 18px -8px var(--violet-g)}50%{box-shadow:0 8px 26px -6px var(--violet-g)}}
 .tile.clear{background:linear-gradient(135deg,var(--green),#17A177);color:#04231A;border-color:transparent}
 .tile.sel{border-color:var(--violet);color:var(--ink);transform:translateY(-2px)}
-.caption{margin:clamp(8px,1.6vh,12px) 2px 0;min-height:2.6em;font-size:12.5px;color:var(--dim);line-height:1.6}
-.caption b{color:var(--ink);font-weight:700}
+.caption{margin:clamp(8px,1.6vh,12px) 2px 0;min-height:2.6em;font-size:14px;font-weight:550;color:var(--dim);line-height:1.62}
+.caption b{color:var(--ink);font-weight:800}
 
 /* ---- 演習 ---- */
 .play{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;padding:clamp(6px,1.4vh,12px) 16px 0}
 .quest{text-align:center;padding:clamp(4px,1.2vh,10px) 0 4px}
-.quest .lab{font-size:11px;letter-spacing:.2em;color:var(--faint)}
+.quest .lab{font-size:12.5px;font-weight:700;letter-spacing:.24em;color:var(--faint)}
 .quest .big-num{
-  font-size:clamp(34px,6vh,52px);font-weight:800;line-height:1.08;letter-spacing:.005em;
-  font-variant-numeric:tabular-nums;
+  font-size:clamp(40px,6.6vh,58px);font-weight:800;line-height:1.04;letter-spacing:-.02em;
+  font-family:var(--f-num);font-variant-numeric:tabular-nums;
   background:linear-gradient(170deg,#FFFFFF 6%,var(--violet) 92%);
   -webkit-background-clip:text;background-clip:text;color:transparent;
   filter:drop-shadow(0 6px 22px var(--violet-g));
 }
 .quest .big-num.bump{animation:bump .5s var(--e-spring)}
 @keyframes bump{0%{transform:scale(1)}36%{transform:scale(1.16)}100%{transform:scale(1)}}
-.quest .cond{font-size:13px;color:var(--dim);margin-top:2px}
+.quest .cond{font-size:14.5px;font-weight:600;color:var(--dim);margin-top:3px;letter-spacing:.03em}
 
 .meters{display:flex;gap:8px;justify-content:center;align-items:center;margin:clamp(5px,1vh,8px) 0 3px}
 .meter{
   display:flex;align-items:center;gap:8px;padding:clamp(5px,.9vh,7px) 13px;border-radius:999px;
-  background:var(--glass);border:1px solid var(--line);font-size:12px;color:var(--dim);
-  transition:border-color var(--t),background var(--t)
+  background:var(--glass);border:1px solid var(--line);font-size:13.5px;font-weight:700;
+  letter-spacing:.06em;color:var(--dim);transition:border-color var(--t),background var(--t)
 }
-.meter b{font-size:15px;font-weight:750;color:var(--ink);font-variant-numeric:tabular-nums}
+.meter b{font-size:18px;font-weight:800;color:var(--ink);font-family:var(--f-num);
+  font-variant-numeric:tabular-nums;letter-spacing:-.01em}
 .meter.warn{border-color:rgba(255,190,115,.55);background:rgba(255,190,115,.13);color:var(--amber)}
 .meter.warn b{color:var(--amber)}
 .meter.warn{animation:tense 1.5s ease-in-out infinite}
 @keyframes tense{0%,100%{box-shadow:0 0 0 0 rgba(255,190,115,0)}50%{box-shadow:0 0 0 5px rgba(255,190,115,.13)}}
 /* 手数は数字でなく粒で見せます。あと何手かが一目で分かります */
 .pips{display:flex;gap:4px;align-items:center}
-.pips i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.17);display:block;
+.pips i{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.17);display:block;
   transition:transform var(--t) var(--e-spring),background var(--t)}
 .pips i.used{background:var(--violet);transform:scale(1.28)}
 .meter.warn .pips i.used{background:var(--amber)}
@@ -245,7 +260,7 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
 .cards{display:grid;grid-template-columns:repeat(8,1fr);gap:3px;margin:0 -8px}
 /* ★ 8 枚を 1 列に置くので、1 枚の幅は 360px の端末でも 40px を割らないようにします */
 .card{
-  position:relative;height:clamp(50px,9vh,72px);perspective:760px;padding:0;
+  position:relative;height:clamp(48px,8.4vh,66px);perspective:760px;padding:0;
   transition:opacity var(--t-s) var(--e-out),filter var(--t-s) var(--e-out)
 }
 .inner{position:absolute;inset:0;transform-style:preserve-3d;
@@ -271,7 +286,8 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
   border:1px solid var(--line2);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.26),0 8px 20px -14px rgba(0,0,0,.9)
 }
-.face .n{font-size:clamp(15px,2.6vh,19px);font-weight:750;font-variant-numeric:tabular-nums;color:var(--ink)}
+.face .n{font-size:clamp(18px,3.1vh,24px);font-weight:800;font-family:var(--f-num);
+  font-variant-numeric:tabular-nums;letter-spacing:-.02em;color:var(--ink)}
 .card.live .face.b{border-color:rgba(183,164,255,.6);box-shadow:inset 0 1px 0 rgba(255,255,255,.26),0 0 0 1px rgba(183,164,255,.22),0 10px 26px -14px var(--violet-g)}
 .card.now .face.f{border-color:var(--amber);
   box-shadow:0 0 0 2px var(--amber-g),0 12px 30px -12px var(--amber-g),inset 0 1px 0 rgba(255,255,255,.3)}
@@ -300,7 +316,8 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
 }
 
 .idxs{display:grid;grid-template-columns:repeat(8,1fr);gap:3px;margin:5px -8px 0}
-.idx{text-align:center;font-size:11.5px;color:var(--faint);font-variant-numeric:tabular-nums;
+.idx{text-align:center;font-size:13px;font-weight:700;color:var(--faint);
+  font-family:var(--f-num);font-variant-numeric:tabular-nums;
   transition:color var(--t),transform var(--t)}
 .idx.in{color:var(--violet)}
 
@@ -309,17 +326,17 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
   background:linear-gradient(90deg,var(--violet-d),var(--violet),var(--violet-d));
   box-shadow:0 0 16px -1px var(--violet-g);
   transition:left .46s var(--e-spring),width .46s var(--e-spring),opacity var(--t)}
-.bandlab{margin-top:7px;text-align:center;font-size:11.5px;color:var(--faint);letter-spacing:.03em}
+.bandlab{margin-top:8px;text-align:center;font-size:13px;font-weight:600;color:var(--faint);letter-spacing:.05em}
 
 .say{
   position:relative;margin:clamp(6px,1.2vh,10px) 0 0;padding:clamp(8px,1.4vh,12px) 15px;
   border-radius:var(--r2);min-height:clamp(42px,7.4vh,64px);overflow:hidden;
   background:var(--glass);border:1px solid var(--line);
-  font-size:13.5px;line-height:1.72;color:var(--dim);
+  font-size:15.5px;font-weight:500;line-height:1.68;color:var(--dim);
   transition:border-color var(--t),background var(--t)
 }
-.say b{color:var(--ink);font-weight:700}
-.say .hl{color:var(--amber);font-weight:750;font-variant-numeric:tabular-nums}
+.say b{color:var(--ink);font-weight:800}
+.say .hl{color:var(--amber);font-weight:800;font-family:var(--f-num);font-variant-numeric:tabular-nums}
 .say.ok{border-color:rgba(62,231,174,.45);background:rgba(62,231,174,.10);color:var(--ink)}
 .say.ng{border-color:rgba(255,126,146,.45);background:rgba(255,126,146,.10);color:var(--ink)}
 .say.beat{animation:saybeat .42s var(--e-out)}
@@ -330,9 +347,10 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
 /* ---- 手数のくらべ。この科目の芯は「同じ仕事でも手間の桁が変わる」ことなので、常に出します ---- */
 .cmp{flex:0 0 auto;margin:clamp(6px,1.2vh,10px) 0 0}
 .cmp .lab{display:none}
-.crow{display:flex;align-items:center;gap:9px;margin-bottom:5px;font-size:11.5px;line-height:1.35;color:var(--dim)}
+.crow{display:flex;align-items:center;gap:9px;margin-bottom:5px;font-size:13px;font-weight:600;
+  line-height:1.36;color:var(--dim)}
 .crow:last-child{margin-bottom:0}
-.crow .cl{flex:0 0 68px;text-align:right;letter-spacing:.02em}
+.crow .cl{flex:0 0 76px;text-align:right;letter-spacing:.04em}
 .crow .bar{flex:1;height:10px;border-radius:99px;background:rgba(255,255,255,.055);overflow:hidden;position:relative}
 .crow .bar i{position:absolute;left:0;top:0;height:10px;border-radius:99px;width:0;
   transition:width .52s var(--e-spring)}
@@ -341,8 +359,9 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
   box-shadow:0 0 12px -2px var(--violet-g)}
 .crow .bar i.a{background:linear-gradient(90deg,#C4803E,var(--amber));
   box-shadow:0 0 12px -2px var(--amber-g)}
-.crow .cn{flex:0 0 56px;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--dim)}
-.crow.now .cl,.crow.now .cn{color:var(--amber);font-weight:700}
+.crow .cn{flex:0 0 62px;white-space:nowrap;font-weight:700;font-family:var(--f-num);
+  font-variant-numeric:tabular-nums;color:var(--dim)}
+.crow.now .cl,.crow.now .cn{color:var(--amber);font-weight:800}
 .crow.mute .bar{background:repeating-linear-gradient(90deg,rgba(255,255,255,.07) 0 5px,transparent 5px 10px)}
 .crow.mute .cl,.crow.mute .cn{color:var(--gray)}
 .crow.over .bar i.a{background:linear-gradient(90deg,#B85C6E,var(--rose))}
@@ -350,29 +369,30 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
 
 /* ---- めくった順 ---- */
 .hist{flex:1;min-height:0;display:flex;flex-direction:column;margin:clamp(5px,1vh,8px) 0 0}
-.hist .lab{font-size:11px;letter-spacing:.2em;color:var(--faint);margin:0 2px 7px;
+.hist .lab{font-size:12.5px;font-weight:700;letter-spacing:.22em;color:var(--faint);margin:0 2px 5px;
   display:flex;align-items:center;gap:9px}
 .hist .lab::after{content:"";flex:1;height:1px;background:var(--line)}
 .hist ol{list-style:none;margin:0;padding:0 0 4px;flex:1;min-height:0;
   overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 .hist li{
-  display:flex;align-items:center;gap:9px;padding:clamp(5px,1vh,8px) 11px;margin-bottom:4px;
-  border-radius:11px;background:rgba(255,255,255,.03);border:1px solid var(--line);
-  font-size:12.5px;color:var(--dim);animation:slip .36s var(--e-out) both
+  display:flex;align-items:center;gap:9px;padding:clamp(4px,.8vh,6px) 11px;margin-bottom:4px;
+  border-radius:11px;background:rgba(255,255,255,.04);border:1px solid var(--line);
+  font-size:14px;font-weight:500;color:var(--dim);animation:slip .36s var(--e-out) both
 }
 @keyframes slip{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
 .hist li .k{flex:0 0 auto;width:20px;height:20px;border-radius:7px;display:grid;place-items:center;
-  background:rgba(183,164,255,.20);color:var(--violet);font-size:11px;font-weight:750;
-  font-variant-numeric:tabular-nums}
+  background:rgba(183,164,255,.24);color:var(--violet);font-size:12.5px;font-weight:800;
+  font-family:var(--f-num);font-variant-numeric:tabular-nums}
 .hist li .m{flex:1;min-width:0}
-.hist li b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
-.hist li .rg{flex:0 0 auto;font-size:11.5px;color:var(--violet);font-variant-numeric:tabular-nums}
-.hist .none{padding:11px 2px;font-size:12.5px;color:var(--faint)}
+.hist li b{color:var(--ink);font-weight:800;font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.hist li .rg{flex:0 0 auto;font-size:13px;font-weight:700;color:var(--violet);
+  font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.hist .none{padding:5px 2px;font-size:13px;font-weight:550;color:var(--faint);line-height:1.5}
 .hist li.more{justify-content:center;background:none;border-style:dashed;
-  border-color:var(--line);color:var(--faint);font-size:11.5px;padding:4px 11px}
+  border-color:var(--line);color:var(--faint);font-size:12.5px;font-weight:600;padding:5px 11px}
 
 /* ---- 操作 ---- */
-.acts{flex:0 0 auto;margin-top:auto;padding:clamp(7px,1.4vh,12px) 16px var(--bar);
+.acts{flex:0 0 auto;margin-top:auto;padding:clamp(7px,1.1vh,10px) 16px var(--bar);
   background:linear-gradient(180deg,rgba(7,8,15,0),rgba(7,8,15,.92) 22%);
   border-top:1px solid var(--line)}
 .acts .pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -382,7 +402,7 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
 .act{
   position:relative;overflow:hidden;
   padding:clamp(8px,1.6vh,14px) 8px;border-radius:var(--r2);text-align:center;
-  font-size:14px;font-weight:650;letter-spacing:.02em;
+  font-size:16px;font-weight:800;letter-spacing:.03em;
   background:var(--glass);border:1px solid var(--line2);color:var(--ink);
   transition:transform var(--t-f) var(--e-out),opacity var(--t),border-color var(--t),background var(--t)
 }
@@ -392,10 +412,11 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
 .act.l:not([disabled]),.act.r:not([disabled]){background:rgba(183,164,255,.08)}
 .act.n{border-color:rgba(255,190,115,.34)}
 .act.n:not([disabled]){background:rgba(255,190,115,.08)}
-.act small{display:block;font-size:11px;color:var(--faint);font-weight:400;margin-top:1px}
+.act .lb{display:block;white-space:nowrap}
+.act small{display:block;font-size:12.5px;color:var(--faint);font-weight:550;margin-top:2px;letter-spacing:.02em}
 .act.bad{animation:shake .42s cubic-bezier(.36,.07,.19,.97);border-color:var(--rose)}
 /* 背の低い端末では、ボタンの添え書きを畳みます（押す所の大きさを先に守ります） */
-@media (max-height:620px){ .act small{display:none} .act{font-size:13.5px} }
+@media (max-height:620px){ .act small{display:none} .act{font-size:15px} }
 
 /* 当たりの一撃。「ここだ」を押させないぶん、ここで気持ちよく決めます */
 .stamp{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;z-index:8;opacity:0}
@@ -406,7 +427,7 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
   27%{transform:scale(1) rotate(-4deg)}
   74%{opacity:1;transform:scale(1) rotate(-4deg)}
   100%{opacity:0;transform:scale(1.07) rotate(-4deg)}}
-.stamp b{font-size:clamp(28px,5.4vh,44px);font-weight:800;letter-spacing:.1em;
+.stamp b{font-size:clamp(32px,6vh,50px);font-weight:800;letter-spacing:.12em;
   color:var(--green);text-shadow:0 0 34px var(--green-g);
   padding:.06em .34em .1em;border:3px solid var(--green);border-radius:15px;
   background:rgba(7,8,15,.58);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
@@ -439,14 +460,14 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
 .curtain.on{display:grid;animation:curt 1.5s var(--e-out) both}
 @keyframes curt{0%{opacity:0}12%,72%{opacity:1}100%{opacity:0}}
 .curtain .ct-n{font-size:clamp(40px,9vh,72px);font-weight:800;letter-spacing:.04em;
-  font-variant-numeric:tabular-nums;
+  font-family:var(--f-num);font-variant-numeric:tabular-nums;letter-spacing:-.01em;
   background:linear-gradient(170deg,#FFF 8%,var(--violet) 92%);
   -webkit-background-clip:text;background-clip:text;color:transparent;
   animation:ctn .7s var(--e-spring) both}
 @keyframes ctn{from{opacity:0;transform:scale(.72) translateY(14px)}to{opacity:1;transform:none}}
-.curtain .ct-t{margin-top:6px;font-size:14px;color:var(--dim);letter-spacing:.1em;
+.curtain .ct-t{margin-top:8px;font-size:16px;font-weight:700;color:var(--dim);letter-spacing:.12em;
   animation:ctn .7s var(--e-spring) .12s both}
-.curtain .ct-r{margin-top:14px;font-size:12px;color:var(--faint);letter-spacing:.12em;
+.curtain .ct-r{margin-top:14px;font-size:13.5px;font-weight:600;color:var(--faint);letter-spacing:.14em;
   animation:ctn .7s var(--e-spring) .2s both}
 
 /* ---- 全問通過の幕 ---- */
@@ -463,18 +484,18 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
 .fin-in{position:relative;z-index:2}
 .fin-word{display:flex;justify-content:center;gap:.01em}
 .fin-word b{
-  display:inline-block;font-size:clamp(30px,8.4vh,62px);font-weight:800;letter-spacing:.04em;
+  display:inline-block;font-size:clamp(34px,9vh,70px);font-weight:800;letter-spacing:-.005em;
   background:linear-gradient(170deg,#FFFFFF 4%,var(--violet) 62%,var(--green) 130%);
   -webkit-background-clip:text;background-clip:text;color:transparent;
   filter:drop-shadow(0 8px 26px var(--violet-g));
   animation:finl .68s var(--e-spring) both}
-.fin-sub{margin-top:10px;font-size:14px;color:var(--ink);letter-spacing:.1em;
+.fin-sub{margin-top:12px;font-size:16px;font-weight:700;color:var(--ink);letter-spacing:.14em;
   animation:finu .7s var(--e-spring) .72s both}
 .fin-tally{margin-top:14px;display:flex;gap:7px;justify-content:center;flex-wrap:wrap}
-.fin-tally span{padding:6px 13px;border-radius:999px;font-size:12px;color:var(--dim);
-  background:rgba(255,255,255,.06);border:1px solid var(--line2);
+.fin-tally span{padding:7px 14px;border-radius:999px;font-size:13.5px;color:var(--dim);
+  background:rgba(255,255,255,.07);border:1px solid var(--line2);font-weight:600;
   animation:finu .7s var(--e-spring) both}
-.fin-tally b{color:var(--ink);font-weight:750;font-variant-numeric:tabular-nums}
+.fin-tally b{color:var(--ink);font-weight:800;font-family:var(--f-num);font-variant-numeric:tabular-nums}
 @keyframes finl{0%{opacity:0;transform:translateY(-38px) scale(.6) rotate(-10deg)}
   100%{opacity:1;transform:none}}
 @keyframes finu{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
@@ -486,24 +507,25 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
 .seal circle,.seal path{stroke-dasharray:200;stroke-dashoffset:200;animation:draw .9s var(--e-out) forwards}
 .seal path{animation-delay:.42s}
 @keyframes draw{to{stroke-dashoffset:0}}
-.done h2{margin:0 0 4px;font-size:clamp(18px,3.2vh,23px);font-weight:750;letter-spacing:.03em;
+.done h2{margin:0 0 5px;font-size:clamp(20px,3.6vh,27px);font-weight:800;letter-spacing:.035em;
   animation:pop-in .5s var(--e-spring) .5s both}
-.done .sub{color:var(--dim);font-size:13.5px;margin:0 0 clamp(12px,2.4vh,22px);
+.done .sub{color:var(--dim);font-size:15px;font-weight:550;margin:0 0 clamp(12px,2.4vh,22px);
   animation:pop-in .5s var(--e-spring) .58s both}
 .codebox{
   padding:15px 14px;border-radius:var(--r2);margin-bottom:10px;
   background:rgba(183,164,255,.10);border:1px solid rgba(183,164,255,.42);
-  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-  font-size:13px;line-height:1.6;word-break:break-all;text-align:left;color:var(--ink);
+  font-family:var(--f-mono);
+  font-size:14px;font-weight:600;line-height:1.62;letter-spacing:.01em;
+  word-break:break-all;text-align:left;color:var(--ink);
   box-shadow:0 14px 40px -24px var(--violet-g);
   animation:pop-in .5s var(--e-spring) .66s both
 }
 .tally{display:flex;gap:8px;justify-content:center;margin:0 0 clamp(11px,2.2vh,20px);flex-wrap:wrap}
 .tally span{padding:5px 12px;border-radius:999px;background:var(--glass);border:1px solid var(--line);
-  font-size:11.5px;color:var(--dim);animation:pop-in .5s var(--e-spring) both}
+  font-size:13px;font-weight:600;color:var(--dim);animation:pop-in .5s var(--e-spring) both}
 .tally span:nth-child(1){animation-delay:.80s}.tally span:nth-child(2){animation-delay:.88s}
 .tally span:nth-child(3){animation-delay:.96s}.tally span:nth-child(4){animation-delay:1.04s}
-.tally b{color:var(--ink);font-variant-numeric:tabular-nums;font-weight:750}
+.tally b{color:var(--ink);font-family:var(--f-num);font-variant-numeric:tabular-nums;font-weight:800}
 
 /* ---- 動きを減らす設定の端末では、全部止めます ---- */
 @media(prefers-reduced-motion:reduce){
@@ -516,15 +538,17 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
    svh が使える環境では、そちらで測り直します（枠が出ている状態がいちばん狭い） */
 @supports (height: 100svh){
   .mark{width:clamp(96px,17svh,132px)}
-  .gate h2{font-size:clamp(20px,3.4svh,25px)}
+  .gate h2{font-size:clamp(22px,3.9svh,29px)}
   .tile{width:clamp(40px,6.2svh,46px);height:clamp(40px,6.2svh,46px)}
-  .quest .big-num{font-size:clamp(34px,6svh,52px)}
-  .card{height:clamp(50px,9svh,72px)}
-  .face .n{font-size:clamp(15px,2.6svh,19px)}
+  .quest .big-num{font-size:clamp(40px,6.6svh,58px)}
+  .card{height:clamp(48px,8.4svh,66px)}
+  .face .n{font-size:clamp(18px,3.1svh,24px)}
   .say{min-height:clamp(42px,7.4svh,64px)}
   .seal{width:clamp(50px,9svh,70px)}
-  .done h2{font-size:clamp(18px,3.2svh,23px)}
+  .done h2{font-size:clamp(20px,3.6svh,27px)}
   .curtain .ct-n{font-size:clamp(40px,9svh,72px)}
+  .stamp b{font-size:clamp(32px,6svh,50px)}
+  .fin-word b{font-size:clamp(34px,9svh,70px)}
 }
 
 </style>
@@ -615,11 +639,11 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
     </div>
     <div class="acts">
       <div class="pair">
-        <button class="act l" id="a-l">ここより左を捨てる<small>出た数が小さいとき</small></button>
-        <button class="act r" id="a-r">ここより右を捨てる<small>出た数が大きいとき</small></button>
+        <button class="act l" id="a-l"><span class="lb">左を捨てる</span><small>出た数が小さいとき</small></button>
+        <button class="act r" id="a-r"><span class="lb">右を捨てる</span><small>出た数が大きいとき</small></button>
       </div>
       <div style="height:8px"></div>
-      <button class="act n" id="a-n">この列にはない<small>残っている範囲がなくなったとき</small></button>
+      <button class="act n" id="a-n"><span class="lb">この列にはない</span><small>残っている範囲がなくなったとき</small></button>
     </div>
   </div>
 </section>
@@ -1288,7 +1312,9 @@ function fitHist(){
   if(!lis.length){ foldAll(); return; }
 
   /* 1 行も入らない端末では、めくった順ごと畳んで、実況に場所をゆずります */
-  var one = lis[lis.length-1].getBoundingClientRect().height || 34;
+  /* ★ 案内行（まだ何もめくっていないときの文）は、実際の手順行より背が高いことがあります。
+     それを基準にすると、入るはずの端末でも畳んでしまいます（2026-09-21）。低いほうで測ります */
+  var one = Math.min(lis[lis.length-1].getBoundingClientRect().height || 34, 40);
   if(box.clientHeight < one - 2){ foldAll(); return; }
   if(box.scrollHeight <= box.clientHeight + 1) return;
 
@@ -1307,8 +1333,10 @@ function fitHist(){
     note.textContent = 'これより前の ' + hidden + ' 手は畳んであります';
   }
   if(box.scrollHeight > box.clientHeight + 1){
+    /* ★ 注記そのものが入らないだけのことがあります。外して収まるなら、節は残します
+       （外さずに節ごと畳むと、1 行だけなら入る端末でも「めくった順」が消えます。2026-09-21） */
     box.removeChild(note);
-    foldAll();          /* 畳んでも入らないなら、節ごと畳みます */
+    if(box.scrollHeight > box.clientHeight + 1) foldAll();
   }
 }
 /* 端から順と、真ん中から半分にする手数をならべ、いまの手数をその上に重ねます。
