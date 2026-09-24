@@ -1,5 +1,5 @@
 /* sw.js — オフラインで動かすための控え。build_app.py が版を入れます。手で書き換えない */
-var V = 'algo-a02-62002fe837';
+var V = 'algo-a02-34ce7b30de';
 var FILES = ['./', './index.html', './manifest.webmanifest',
              './icon-192.png', './icon-512.png', './icon-maskable-512.png'];
 self.addEventListener('install', function(e){

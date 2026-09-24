@@ -219,6 +219,11 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
 
 /* ---- 演習 ---- */
 .play{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;padding:clamp(6px,1.4vh,12px) 16px 0}
+/* ★ 32 枚の盤は 210px 使います。「さがす数」の札と並びの説明を上に残すと、
+   553px の端末で 31px あふれます（2026-09-21 に実測）。並びの言葉は帯の下が引き取ります。 */
+.play[data-n="32"] .quest .lab,
+.play[data-n="32"] .quest .cond{display:none}
+.play[data-n="32"] .quest{padding-top:2px;padding-bottom:0}
 .quest{text-align:center;padding:clamp(4px,1.2vh,10px) 0 4px}
 .quest .lab{font-size:12.5px;font-weight:700;letter-spacing:.24em;color:var(--faint)}
 .quest .big-num{
@@ -258,11 +263,19 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
 @keyframes shake{10%,90%{transform:translateX(-2px)}20%,80%{transform:translateX(4px)}
   30%,50%,70%{transform:translateX(-7px)}40%,60%{transform:translateX(7px)}}
 .cards{display:grid;grid-template-columns:repeat(8,1fr);gap:3px;margin:0 -8px}
-/* ★ 8 枚を 1 列に置くので、1 枚の幅は 360px の端末でも 40px を割らないようにします */
+/* ★ 列は 8 のまま、行だけ増やします（8 枚＝1 行／16 枚＝2 行／32 枚＝4 行）。
+   列を増やすと 1 枚の幅が 360px の端末で 20px を割り、押せなくなります。
+   行が増えるぶん 1 枚の背を低くして、盤の高さをおおよそ保ちます。 */
 .card{
   position:relative;height:clamp(48px,8.4vh,66px);perspective:760px;padding:0;
   transition:opacity var(--t-s) var(--e-out),filter var(--t-s) var(--e-out)
 }
+/* ★ 行を増やしたぶん背を低くしすぎると、押し所が 40px を割ります
+   （2026-09-21 の実測で 16 枚が 44x39、32 枚が 45x34 でした）。下限は 40px です。
+   そのぶん盤が高くなるので、入らない端末では「手数のくらべ」と「めくった順」が畳まれます。 */
+.board[data-n="16"] .card{height:clamp(42px,6.4vh,54px)}
+.board[data-n="32"] .card{height:clamp(40px,5.2vh,48px)}
+.board[data-n="32"] .cards{gap:2px}
 .inner{position:absolute;inset:0;transform-style:preserve-3d;
   transition:transform .62s var(--e-spring)}
 .card.flip .inner{transform:rotateY(180deg)}
@@ -288,6 +301,17 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
 }
 .face .n{font-size:clamp(18px,3.1vh,24px);font-weight:800;font-family:var(--f-num);
   font-variant-numeric:tabular-nums;letter-spacing:-.02em;color:var(--ink)}
+.board[data-n="16"] .face .n{font-size:clamp(15px,2.4vh,19px)}
+.board[data-n="32"] .face .n{font-size:clamp(13.5px,1.95vh,16px)}
+/* ★ 何枚目かは、カードの裏に書きます。32 枚を 4 行に置くと、
+   盤の下に番号の行を足す余地がありません（一枚に収める合格線が崩れます）。 */
+.face.b .ix{position:relative;z-index:2;font-size:15px;font-weight:800;color:var(--dim);
+  font-family:var(--f-num);font-variant-numeric:tabular-nums;letter-spacing:-.01em;
+  text-shadow:0 1px 3px rgba(7,8,15,.85);transition:color var(--t)}
+.board[data-n="16"] .face.b .ix{font-size:13.5px}
+.board[data-n="32"] .face.b .ix{font-size:12.5px}
+.card.live .face.b .ix{color:var(--ink)}
+.card.out .face.b .ix{color:var(--gray)}
 .card.live .face.b{border-color:rgba(183,164,255,.6);box-shadow:inset 0 1px 0 rgba(255,255,255,.26),0 0 0 1px rgba(183,164,255,.22),0 10px 26px -14px var(--violet-g)}
 .card.now .face.f{border-color:var(--amber);
   box-shadow:0 0 0 2px var(--amber-g),0 12px 30px -12px var(--amber-g),inset 0 1px 0 rgba(255,255,255,.3)}
@@ -315,20 +339,23 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
   100%{transform:translateY(30px) rotate(var(--tilt,0deg)) scale(.82);opacity:.2}
 }
 
-.idxs{display:grid;grid-template-columns:repeat(8,1fr);gap:3px;margin:5px -8px 0}
-.idx{text-align:center;font-size:13px;font-weight:700;color:var(--faint);
-  font-family:var(--f-num);font-variant-numeric:tabular-nums;
-  transition:color var(--t),transform var(--t)}
-.idx.in{color:var(--violet)}
-
+/* 残っている範囲。行をまたぐので、位置と広さを 1 本の帯に落として見せます
+   （左端＝1 枚目、右端＝最後の 1 枚。帯の長さがそのまま候補の数です） */
 .band{position:relative;height:6px;margin:8px -8px 0;border-radius:99px;background:rgba(255,255,255,.05);overflow:hidden}
+/* ★ 幅ではなく **左右の余白**で表します。left と right の両方を決めると、
+   器の外へは出られません（left + width だと、動いている途中に合計が 100% を超えて
+   横へはみ出し、2 回に 1 回だけ検査が鳴ります。2026-09-24 に iPad 縦で再発） */
 .band i{position:absolute;top:0;height:6px;border-radius:99px;
   background:linear-gradient(90deg,var(--violet-d),var(--violet),var(--violet-d));
   box-shadow:0 0 16px -1px var(--violet-g);
-  transition:left .46s var(--e-spring),width .46s var(--e-spring),opacity var(--t)}
+  transition:left .46s var(--e-spring),right .46s var(--e-spring),opacity var(--t)}
 .bandlab{margin-top:8px;text-align:center;font-size:13px;font-weight:600;color:var(--faint);letter-spacing:.05em}
 
+/* ★ flex の既定は縮みます。縮んだうえに overflow:hidden なので、
+   長い実況が器の中で**黙って切れます**（2026-09-21 に 553px の実機画で発見）。
+   縮ませないと決めて、入らないときは文のほうを短くします。 */
 .say{
+  flex:0 0 auto;
   position:relative;margin:clamp(6px,1.2vh,10px) 0 0;padding:clamp(8px,1.4vh,12px) 15px;
   border-radius:var(--r2);min-height:clamp(42px,7.4vh,64px);overflow:hidden;
   background:var(--glass);border:1px solid var(--line);
@@ -341,8 +368,17 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
 .say.ng{border-color:rgba(255,126,146,.45);background:rgba(255,126,146,.10);color:var(--ink)}
 .say.beat{animation:saybeat .42s var(--e-out)}
 @keyframes saybeat{0%{opacity:.4;transform:translateY(-3px)}100%{opacity:1;transform:none}}
-/* めくった順が 1 行も入らない端末では、その場所を実況にまわします */
-.play.nohist .say{flex:1 1 auto;min-height:0;overflow-y:auto}
+/* ★ 以前はここで実況を伸び縮みさせていましたが、**縮んだときに文が隠れていました**。
+   実況は縮ませません。入らないときは、文のほうを短くするか、下の飾りを畳みます。 */
+.play.nohist .say{min-height:0}
+
+/* 背の低い端末では、実況の字を 1 段落として 2 行に収めます（下限 12.5px は守ります） */
+@media (max-height:700px){
+  .say{font-size:14.5px;line-height:1.56;min-height:0}
+  /* 32 枚では、帯の下の行が実況と同じことを言っています。盤に場所をゆずります */
+  .play[data-n="32"] .bandlab{display:none}
+  .play[data-n="32"] .band{margin-top:6px}
+}
 
 /* ---- 手数のくらべ。この科目の芯は「同じ仕事でも手間の桁が変わる」ことなので、常に出します ---- */
 .cmp{flex:0 0 auto;margin:clamp(6px,1.2vh,10px) 0 0}
@@ -469,6 +505,11 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
   animation:ctn .7s var(--e-spring) .12s both}
 .curtain .ct-r{margin-top:14px;font-size:13.5px;font-weight:600;color:var(--faint);letter-spacing:.14em;
   animation:ctn .7s var(--e-spring) .2s both}
+/* 予測の直後だけ出る行。予測と「半分にできる回数」と上限を、その場で並べます */
+.curtain .ct-p{margin:16px auto 0;max-width:min(92vw,420px);padding:9px 14px;border-radius:999px;
+  font-size:13px;font-weight:700;color:var(--violet);letter-spacing:.04em;line-height:1.6;
+  background:rgba(183,164,255,.12);border:1px solid rgba(183,164,255,.38);
+  animation:ctn .7s var(--e-spring) .3s both}
 
 /* ---- 全問通過の幕 ---- */
 .finale{position:fixed;inset:0;z-index:60;display:none;place-items:center;text-align:center;
@@ -501,8 +542,12 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
 @keyframes finu{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 
 /* ---- 提出 ---- */
+/* ★ 縦に並べたものが入り切らないと、flex が押し所ごと縮めます。
+   664px の端末で「まとめの問題へ」が 35px になっていました（2026-09-21 の実測）。
+   縮めないと決めたうえで、背の低い端末では印と手数を落とします。 */
 .done{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;
-  padding:clamp(14px,2.6vh,28px) 16px calc(var(--bar) + clamp(12px,2.2vh,20px));text-align:center}
+  padding:clamp(10px,2.2vh,28px) 16px calc(var(--bar) + clamp(10px,1.8vh,20px));text-align:center}
+.done > *{flex:0 0 auto}
 .seal{width:clamp(50px,9vh,70px);height:auto;margin:0 auto clamp(9px,1.8vh,16px);overflow:visible}
 .seal circle,.seal path{stroke-dasharray:200;stroke-dashoffset:200;animation:draw .9s var(--e-out) forwards}
 .seal path{animation-delay:.42s}
@@ -526,6 +571,40 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
 .tally span:nth-child(1){animation-delay:.80s}.tally span:nth-child(2){animation-delay:.88s}
 .tally span:nth-child(3){animation-delay:.96s}.tally span:nth-child(4){animation-delay:1.04s}
 .tally b{color:var(--ink);font-family:var(--f-num);font-variant-numeric:tabular-nums;font-weight:800}
+.perq{margin:-6px 0 clamp(11px,2.2vh,20px);font-size:12.5px;font-weight:600;color:var(--faint);
+  font-family:var(--f-num);font-variant-numeric:tabular-nums;letter-spacing:.06em;
+  animation:pop-in .5s var(--e-spring) 1.1s both}
+/* 送り先を入れると「もう一度送る」が増えるので、背の低い端末では問ごとの手数を落とします */
+/* ★ ここから下は**素の指定より後ろ**に置きます。CSS は同じ強さなら記述順で勝つので、
+   `.done h2` や `.done .sub` の素の指定より前に書くと、書いたのに効きません
+   （2026-09-24 に、詰めたはずの 35px のうち 2px しか効いていませんでした）。 */
+@media (max-height:720px){ .done .seal{display:none} .done h2{margin-top:4px} }
+@media (max-height:720px){ .done .perq{display:none} }
+@media (max-height:600px){
+  .done .tally{display:none}
+  /* いちばん小さい端末（375x553）で、コードを開くと 7px あふれます。
+     字の下限は守り、余白と下の空きだけを詰めます */
+  /* ★ 送り先を入れると、送信の行が「文＋もう一度送る」で 2 段（72px）になります。
+     いちばん小さい端末では、そのぶんの余裕をここで作ります（字の下限 12.5px は守ります）。 */
+  .done{padding-top:8px;padding-bottom:calc(var(--bar) + 4px)}
+  .done h2{font-size:19px;margin-bottom:3px}
+  /* ★ すぐ下のボタンが同じことを言っています（「つづけて、まとめの問題に答えます」と
+     「まとめの問題へ」）。いちばん小さい端末では、重なっているほうを落とします。 */
+  .done .sub{display:none}
+  .sendbox{gap:7px;margin-bottom:4px}
+  .fold summary{padding:8px 0}
+  .fold[open] summary{margin-bottom:7px}
+}
+/* ★ コードを開いた状態も一枚に収めます。**中身は落とさず、枠だけを詰めます。**
+   送り先を入れると「もう一度送る」が増えるので、800px の端末でも 7px あふれました（2026-09-24）。
+   スマホの高さ全域で詰めます（字は下限 12.5px を割りません）。 */
+@media (max-height:860px){
+  .fold summary{padding:9px 0}
+  .fold[open] summary{margin-bottom:9px}
+  .foldnote{margin-bottom:7px;font-size:12.5px;line-height:1.5}
+  .fold .codebox{padding:11px 12px;font-size:12.5px;line-height:1.5;margin-bottom:8px}
+  .fold .big{margin-bottom:9px;padding:12px}
+}
 
 /* ---- 動きを減らす設定の端末では、全部止めます ---- */
 @media(prefers-reduced-motion:reduce){
@@ -542,7 +621,13 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
   .tile{width:clamp(40px,6.2svh,46px);height:clamp(40px,6.2svh,46px)}
   .quest .big-num{font-size:clamp(40px,6.6svh,58px)}
   .card{height:clamp(48px,8.4svh,66px)}
+  .board[data-n="16"] .card{height:clamp(42px,6.4svh,54px)}
+  .board[data-n="32"] .card{height:clamp(40px,5.2svh,48px)}
   .face .n{font-size:clamp(18px,3.1svh,24px)}
+  .board[data-n="16"] .face .n{font-size:clamp(15px,2.4svh,19px)}
+  .board[data-n="32"] .face .n{font-size:clamp(13.5px,1.95svh,16px)}
+  .pred-n{font-size:clamp(52px,10svh,86px)}
+  .qtext{font-size:clamp(17px,3.1svh,21px)}
   .say{min-height:clamp(42px,7.4svh,64px)}
   .seal{width:clamp(50px,9svh,70px)}
   .done h2{font-size:clamp(20px,3.6svh,27px)}
@@ -550,6 +635,104 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
   .stamp b{font-size:clamp(32px,6svh,50px)}
   .fin-word b{font-size:clamp(34px,9svh,70px)}
 }
+
+/* ---- 予測の段。列が倍になる手前で 1 つだけ聞きます ---- */
+.pred{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;
+  padding:clamp(14px,2.6vh,28px) 16px calc(var(--bar) + clamp(12px,2.2vh,20px));text-align:center}
+.pred .kick{margin-bottom:clamp(4px,1vh,8px)}
+.pred-head{display:flex;align-items:baseline;justify-content:center;gap:6px}
+.pred-n{font-size:clamp(52px,10vh,86px);font-weight:800;line-height:1;letter-spacing:-.03em;
+  font-family:var(--f-num);font-variant-numeric:tabular-nums;
+  background:linear-gradient(170deg,#FFFFFF 6%,var(--violet) 92%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 8px 26px var(--violet-g));
+  animation:pop-in .52s var(--e-spring) both}
+.pred-u{font-size:20px;font-weight:700;color:var(--dim);letter-spacing:.08em}
+.pred h2{margin:clamp(10px,2vh,18px) 0 0;font-size:clamp(17px,3.1vh,21px);font-weight:800;
+  line-height:1.6;letter-spacing:.03em}
+.pred-note{margin:8px 0 0;font-size:14px;font-weight:550;color:var(--dim);line-height:1.6}
+.stepper{display:flex;align-items:center;justify-content:center;gap:12px;
+  margin:clamp(14px,2.8vh,26px) 0 0}
+.stp{width:clamp(50px,8.4vh,62px);height:clamp(50px,8.4vh,62px);border-radius:50%;
+  display:grid;place-items:center;font-size:26px;font-weight:700;line-height:1;
+  background:var(--glass);border:1px solid var(--line2);color:var(--ink);
+  transition:transform var(--t-f) var(--e-spring),border-color var(--t)}
+.stp:active{transform:scale(.9);border-color:var(--violet)}
+#pred-v{
+  width:clamp(96px,17vh,126px);height:clamp(64px,10.4vh,82px);text-align:center;
+  font-size:clamp(34px,6vh,46px);font-weight:800;letter-spacing:-.02em;
+  border-radius:var(--r2);background:rgba(183,164,255,.10);
+  border:1px solid rgba(183,164,255,.46);color:var(--ink);
+  box-shadow:0 14px 40px -24px var(--violet-g)}
+#pred-v:focus{outline:none;border-color:var(--violet);background:rgba(183,164,255,.16)}
+.pred .hint{text-align:center;margin-top:clamp(9px,1.8vh,14px)}
+.pred .big{margin-top:clamp(10px,2vh,18px)}
+
+/* ---- まとめの問題 ---- */
+.quiz{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;
+  padding:clamp(8px,1.6vh,16px) 16px 0}
+.qload{text-align:center;color:var(--dim);font-size:15px;font-weight:550}
+.qload p{margin:14px 0 0}
+.spin{width:34px;height:34px;margin:0 auto;border-radius:50%;
+  border:3px solid rgba(183,164,255,.22);border-top-color:var(--violet);
+  animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.qdots{display:flex;gap:6px;justify-content:center;margin:0 0 clamp(12px,2.4vh,22px)}
+.qdots i{width:26px;height:5px;border-radius:99px;background:rgba(255,255,255,.14);display:block;
+  transition:background var(--t)}
+.qdots i.qd-past{background:var(--violet)}
+.qdots i.qd-now{background:var(--amber)}
+.qtext{margin:0 0 clamp(12px,2.4vh,20px);font-size:clamp(17px,3.1vh,21px);font-weight:800;
+  line-height:1.66;letter-spacing:.02em}
+.qopts{display:flex;flex-direction:column;gap:clamp(7px,1.4vh,10px)}
+.qopt{
+  display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+  padding:clamp(10px,1.9vh,15px) 14px;border-radius:var(--r2);
+  background:var(--glass);border:1px solid var(--line2);color:var(--ink);
+  font-size:15.5px;font-weight:600;line-height:1.55;
+  transition:transform var(--t-f) var(--e-out),border-color var(--t),background var(--t)}
+.qopt:active{transform:scale(.985)}
+.qopt .mk{flex:0 0 auto;width:28px;height:28px;border-radius:9px;display:grid;place-items:center;
+  background:rgba(255,255,255,.08);border:1px solid var(--line);
+  font-size:13.5px;font-weight:800;color:var(--dim);
+  font-family:var(--f-num);transition:background var(--t),color var(--t),border-color var(--t)}
+.qopt .tx{flex:1;min-width:0}
+.qopt.sel{border-color:var(--violet);background:rgba(183,164,255,.13)}
+.qopt.sel .mk{background:linear-gradient(135deg,var(--violet),var(--violet-d));color:#0A0718;border-color:transparent}
+
+/* ---- 送信の状態 ---- */
+.sendbox{display:flex;align-items:center;justify-content:center;gap:9px;flex-wrap:wrap;
+  margin:0 0 clamp(10px,2vh,16px);font-size:13.5px;font-weight:600;color:var(--dim)}
+.sendbox .dot{width:9px;height:9px;border-radius:50%;background:var(--amber);flex:0 0 auto;
+  animation:tense 1.5s ease-in-out infinite}
+.sendbox.ok .dot{background:var(--green);animation:none}
+.sendbox.ng .dot{background:var(--rose);animation:none}
+/* 送り先を決めていないだけのときは、まちがいの色にしません（学生には何の落ち度もありません） */
+.sendbox.note .dot{background:var(--gray);animation:none}
+.sendbox.note{color:var(--dim)}
+.sendbox.ok{color:var(--green)}
+.sendbox.ng{color:var(--rose)}
+/* ★ 押し所は 40px 以上。送り先を決めるまでは出てこないボタンなので、
+   2026-09-24 に送り先を入れて初めて 101x34 で落ちました（学生はつながらないとき必ず見ます） */
+.mini{min-height:40px;padding:0 16px;border-radius:999px;display:inline-flex;align-items:center;
+  background:var(--glass);border:1px solid var(--line2);
+  color:var(--ink);font-size:13px;font-weight:700}
+.mini:active{transform:scale(.95)}
+/* ★ `display` を書くと、`hidden` 属性の既定（display:none）を上書きしてしまいます。
+   送れているのに「もう一度送る」が出たままになりました（2026-09-24・絵を見て発見）。
+   機械の検査は「出ている」ことを落としません ―― 出ていてよい場面もあるからです。 */
+.mini[hidden]{display:none}
+
+/* ---- コードの折りたたみ（うまく送れないときの控え） ---- */
+.fold{text-align:left;border-radius:var(--r2);border:1px solid var(--line);
+  background:rgba(255,255,255,.035);padding:0 13px}
+.fold summary{list-style:none;cursor:pointer;padding:12px 0;font-size:13.5px;font-weight:700;
+  color:var(--dim);letter-spacing:.04em;text-align:center}
+.fold summary::-webkit-details-marker{display:none}
+.fold[open] summary{border-bottom:1px solid var(--line);margin-bottom:12px}
+.foldnote{margin:0 0 10px;font-size:13px;font-weight:550;color:var(--faint);line-height:1.6}
+.fold .codebox{animation:none}
+.fold .big{margin-bottom:13px}
 
 </style>
 </head>
@@ -579,7 +762,7 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
       <rect class="cut"      x="30" y="54" width="39" height="5" rx="2.5" fill="#3EE7AE"/>
     </svg>
     <h2>アルゴリズムとデータ構造</h2>
-    <p class="sub">解いて、手数を数えて、提出コードを出します</p>
+    <p class="sub">解いて、手数を数えて、まとめの問題に答えます</p>
     <label class="field" for="sid">学籍番号</label>
     <input type="text" id="sid" inputmode="latin" autocomplete="off" autocapitalize="characters"
            spellcheck="false" maxlength="12" placeholder="aaa26217">
@@ -596,6 +779,24 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
     <span class="step tnum" id="list-sid"></span>
   </header>
   <div class="list" id="list-body"></div>
+</section>
+
+<!-- 予測 -->
+<section class="screen" id="s-pred">
+  <div class="pred">
+    <div class="kick">つぎに出る列</div>
+    <div class="pred-head"><span class="pred-n tnum" id="pred-n">16</span><span class="pred-u">枚</span></div>
+    <h2 id="pred-q">半分にしていくと、何回で 1 枚になりますか</h2>
+    <p class="pred-note" id="pred-note"></p>
+    <div class="stepper">
+      <button class="stp" id="pred-minus" aria-label="1 減らす">−</button>
+      <input type="text" id="pred-v" class="tnum" inputmode="numeric" autocomplete="off"
+             spellcheck="false" maxlength="2" value="4">
+      <button class="stp" id="pred-plus" aria-label="1 増やす">＋</button>
+    </div>
+    <p class="hint" id="pred-hint">思ったとおりの数を入れてください。合っていなくても先へ進みます。</p>
+    <button class="big" id="pred-go">答える</button>
+  </div>
 </section>
 
 <!-- 演習 -->
@@ -618,9 +819,8 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
       <span class="meter" id="m-wrap">手数 <span class="pips" id="pips"></span></span>
       <span class="meter">候補 <b class="tnum" id="m-left">8</b></span>
     </div>
-    <div class="board" id="board">
+    <div class="board" id="board" data-n="8">
       <div class="cards" id="cards"></div>
-      <div class="idxs" id="idxs"></div>
       <div class="band" id="band"><i></i></div>
       <div class="bandlab" id="band-lab"></div>
       <div class="fx" id="fx" aria-hidden="true"></div>
@@ -630,7 +830,7 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
     <div class="cmp" id="cmp">
       <div class="lab">手数のくらべ</div>
       <div class="crow"><span class="cl">端から順</span><span class="bar"><i class="w" id="c-lin"></i></span><span class="cn" id="c-linn">—</span></div>
-      <div class="crow"><span class="cl">真ん中から</span><span class="bar"><i class="v" id="c-bin"></i></span><span class="cn" id="c-binn">—</span></div>
+      <div class="crow"><span class="cl">半分にする</span><span class="bar"><i class="v" id="c-bin"></i></span><span class="cn" id="c-binn">—</span></div>
       <div class="crow now"><span class="cl">いま</span><span class="bar"><i class="a" id="c-now"></i></span><span class="cn tnum" id="c-nown">0</span></div>
     </div>
     <div class="hist" id="hist">
@@ -648,6 +848,28 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
   </div>
 </section>
 
+<!-- まとめの問題 -->
+<section class="screen" id="s-quiz">
+  <header class="top">
+    <h1>まとめの問題</h1>
+    <span class="step" id="quiz-step"></span>
+  </header>
+  <div class="quiz" id="quiz-body">
+    <div class="qload" id="quiz-load">
+      <div class="spin" aria-hidden="true"></div>
+      <p id="quiz-load-msg">問題を受け取っています</p>
+    </div>
+    <div class="qmain" id="quiz-main" hidden>
+      <div class="qdots" id="quiz-dots"></div>
+      <h2 class="qtext" id="quiz-text"></h2>
+      <div class="qopts" id="quiz-opts"></div>
+    </div>
+  </div>
+  <div class="acts">
+    <button class="big" id="quiz-next" disabled>つぎへ</button>
+  </div>
+</section>
+
 <!-- 提出 -->
 <section class="screen" id="s-done">
   <div class="done">
@@ -656,12 +878,29 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
       <path d="M20 33l8.5 8.5L44 25" fill="none" stroke="#3EE7AE" stroke-width="4"
             stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
-    <h2>3 問つづけて通りました</h2>
-    <p class="sub">下のコードを Forms に貼って提出します</p>
-    <div class="codebox tnum" id="code"></div>
-    <button class="big" id="copy">コードをコピーする</button>
-    <div style="height:14px"></div>
+    <h2 id="done-h">6 問つづけて通りました</h2>
+    <p class="sub" id="done-sub">つづけて、まとめの問題に答えます</p>
+
     <div class="tally" id="tally"></div>
+    <div class="perq" id="perq"></div>
+
+    <button class="big" id="to-quiz">まとめの問題へ</button>
+    <div style="height:10px"></div>
+
+    <div class="sendbox" id="sendbox">
+      <span class="dot" id="send-dot"></span>
+      <span class="sendmsg" id="send-msg">記録を送っています</span>
+      <button class="mini" id="send-retry" hidden>もう一度送る</button>
+    </div>
+
+    <details class="fold" id="codefold">
+      <summary>コードを表示する</summary>
+      <p class="foldnote">うまく送れないときは、このコードを控えて提出してください。</p>
+      <div class="codebox tnum" id="code"></div>
+      <button class="big ghost" id="copy">コードをコピーする</button>
+    </details>
+
+    <div style="height:10px"></div>
     <button class="big ghost" id="done-back">一覧へもどる</button>
   </div>
 </section>
@@ -671,21 +910,75 @@ input[type=text]::placeholder{text-transform:none;color:var(--faint);opacity:.5;
 /* 第2回「探す」の中核。ページ（JavaScript）と採点（Python）で同じ結果になること。
    - 入力は ASCII だけ
    - **学籍番号は英数字 8 文字**（本学の実物は aaa26217 の形）。大文字にそろえてから問題を決める
-   - 問題は 学籍番号・パズル名・乱数札・何問目 から決まる
+   - **列は 8 → 16 → 32 と伸びて 6 問**（2026-09-21 の「2 分で終わる」という指摘から）。
+     列が倍になる手前で**予測**を 1 つ挟む（半分にできる回数。そのまま上限になる）
    - **間違えても、その問だけ引き直す**（1 問目には戻らない。本人 2026-09-21）。
      問ごとの「何回目か」は記録の先頭 2 文字（36 進）に入れ、採点側で数えられるようにする
    - **「ここだ」は押させない。**当たりの札をめくった時点で通過する（本人 2026-09-21）。
      記録には H を書くが、これは機械が書くもので、学生の選択ではない
-   - 提出コードの中身は 学籍番号・乱数札・操作の記録。秘密は持たない。
+   - 提出コードの中身は 学籍番号・乱数札・操作の記録・予測。秘密は持たない。
      **ページの JS から問題を再計算できるので、解かずに通る記録も作れます。**
      捕まえられるのは、提出者とコードの中の学籍番号を突き合わせたときだけです
-   - 上限は `_build/app/measure_limits.py` が全数探索で決めた数。手で書き換えない */
+   - 上限と出してよい位置・すき間は `_build/app/measure_limits.py` が全数探索で決めた規則。
+     **一覧を写さず、同じ規則をここでも計算する**（写すと片方だけ直って食い違う） */
 var PZ = (function(){
-  var ID = 'A02', ROUNDS = 3, N = 8;
-  var LIMITS = [8, 3, 3];
-  var FIXED_POS = 5;      /* 問2 の目的の位置。端から順が落ちる位置は 4 と 5 だけで、4 は 1 手で終わる */
-  var GAP_LO = 1, GAPS = 6;  /* 問3 のすき間は 1〜6。0 はでたらめが 3 倍通りやすく、7・8 は 4 手かかる */
-  var TMAX = 1295;        /* やり直しの回数は 2 文字(36進)で持つ */
+  var ID = 'A02', ROUNDS = 6;
+  var TMAX = 1295;        /* やり直しの回数は 2 文字(36進) */
+  var PMAX = 35;          /* 予測の答えは 1 文字(36進) */
+  /* すき間は端に寄せない。端から順に潰すだけで範囲が空になり、上限内で通ってしまう
+     （2026-09-21 に 16 枚で 89/600・32 枚で 70/600 が素通りした）。
+     左から潰すと すき間+1 手、右から潰すと 枚数-すき間+1 手。どちらも上限を超える範囲だけを出す */
+  var FIXED_POS_8 = 5;    /* 8 枚では、3 つの条件を満たす位置が 5 番目しかない */
+
+  /* 6 問の骨組み。n = 枚数 ／ mode = 並びと目的 ／ 上限は halvings(n) */
+  var SPEC = [
+    { n:8,  mode:'unsorted' },
+    { n:8,  mode:'sorted'   },
+    { n:16, mode:'sorted'   },
+    { n:16, mode:'absent'   },
+    { n:32, mode:'sorted'   },
+    { n:32, mode:'absent'   }
+  ];
+  /* 予測の段。before = この問の手前で聞く（0 起点）／ n = 何枚の列について聞くか */
+  var PREDS = [ { before:2, n:16 }, { before:4, n:32 } ];
+
+  /* 半分にしていくと何回で 1 枚になるか。これが上限であり、予測の答え */
+  function halvings(n){ var k = 0; while(n > 1){ n = Math.floor(n / 2); k++; } return k; }
+
+  /* 二分探索の手数（位置あり） */
+  function binSteps(pos, n){
+    var lo = 1, hi = n, k = 0;
+    while(lo <= hi){
+      var mid = Math.floor((lo + hi) / 2); k++;
+      if(mid === pos) return k;
+      if(mid < pos) lo = mid + 1; else hi = mid - 1;
+    }
+    return k;
+  }
+  /* 二分探索の手数（目的が入っていない。範囲が空になるまで） */
+  function binAbsent(gap, n){
+    var lo = 1, hi = n, k = 0;
+    while(lo <= hi){
+      var mid = Math.floor((lo + hi) / 2); k++;
+      if(mid <= gap) lo = mid + 1; else hi = mid - 1;
+    }
+    return k;
+  }
+  /* 出してよい位置 ―― ①上限内で二分探索が通る ②端から順が左右どちらからでも落ちる ③1 手では終わらない */
+  function posPool(n){
+    var cap = halvings(n), out = [];
+    for(var p = 1; p <= n; p++){
+      var b = binSteps(p, n);
+      if(b <= cap && Math.min(p, n + 1 - p) > cap && b >= 2) out.push(p);
+    }
+    return out;
+  }
+  /* 出してよいすき間 ―― ①上限内で「ない」と言い切れる ②端から順が左右どちらからでも落ちる */
+  function gapPool(n){
+    var cap = halvings(n), out = [];
+    for(var g = cap; g <= n - cap; g++){ if(binAbsent(g, n) <= cap) out.push(g); }
+    return out;
+  }
 
   function fnv1a(s){
     var h = 0x811c9dc5;
@@ -709,10 +1002,11 @@ var PZ = (function(){
       return x >>> 0;
     };
   }
-  /* 8 枚の 2 桁の数。差は 3 以上（すき間に入る数を作れるように）。最大は 17+7*9=80 */
-  function ascCards(seed){
+  /* n 枚の昇順の数。差は 2 以上 8 以下（すき間に入る数が必ず作れて、等差にならない）。
+     ★ 差を一定にすると、1 枚めくった値から目的の位置を計算できてしまいます */
+  function ascCards(seed, n){
     var r = rng(seed), v = [], cur = 13 + (r() % 5);
-    for(var i = 0; i < N; i++){ v.push(cur); cur += 3 + (r() % 7); }
+    for(var i = 0; i < n; i++){ v.push(cur); cur += 2 + (r() % 7); }
     return v;
   }
   function shuffle(a, seed){
@@ -725,8 +1019,10 @@ var PZ = (function(){
   function seedOf(sid, nonce, r, t, tag){
     return fnv1a(normSid(sid) + '|' + ID + '|' + nonce + '|' + r + '|' + t + '|' + tag);
   }
-  /* やり直しの回数（2 文字・36 進）。間違えても**その問だけ**引き直すので、
-     問ごとに何回目かを持ちます。採点側で数えられます */
+  /* 位置は 36 進 1 文字（1〜32 → '1'〜'9','A'〜'W'）。32 枚を 2 文字 1 手のまま持つため */
+  function encPos(p){ return p.toString(36).toUpperCase(); }
+  function decPos(ch){ var v = parseInt(ch, 36); return isNaN(v) ? -1 : v; }
+  /* やり直しの回数（2 文字・36 進）。間違えてもその問だけ引き直すので、問ごとに持つ */
   function encT(t){
     var v = Math.max(0, Math.min(TMAX, t | 0)).toString(36).toUpperCase();
     return v.length < 2 ? '0' + v : v;
@@ -735,31 +1031,45 @@ var PZ = (function(){
     var v = parseInt(s2, 36);
     return (isNaN(v) || v < 0 || v > TMAX) ? -1 : v;
   }
-
-  /* 問題。r = 0,1,2 ／ t = その問を何回目に引いたか */
-  function problem(sid, nonce, r, t){
-    t = t || 0;
-    var asc = ascCards(seedOf(sid, nonce, r, t, 'c'));
-    var h = seedOf(sid, nonce, r, t, 'k');
-    if(r === 0){
-      var mixed = shuffle(asc, seedOf(sid, nonce, r, t, 's'));
-      var pos = 1 + (h % N);
-      return { round:0, attempt:t, mode:'unsorted', cards:mixed, target:mixed[pos-1],
-               targetPos:pos, limit:LIMITS[0] };
-    }
-    if(r === 1){
-      return { round:1, attempt:t, mode:'sorted', cards:asc, target:asc[FIXED_POS-1],
-               targetPos:FIXED_POS, limit:LIMITS[1] };
-    }
-    var g = GAP_LO + (h % GAPS);
-    var tg = asc[g-1] + Math.floor((asc[g] - asc[g-1]) / 2);
-    return { round:2, attempt:t, mode:'absent', cards:asc, target:tg, gap:g, targetPos:0, limit:LIMITS[2] };
+  /* 予測の答え（1 文字・36 進）。未回答は '-' */
+  function encP(x){
+    if(x === null || x === undefined || x === '' || isNaN(x)) return '-';
+    return Math.max(0, Math.min(PMAX, x | 0)).toString(36).toUpperCase();
+  }
+  function decP(ch){
+    if(ch === '-') return null;
+    var v = parseInt(ch, 36);
+    return (isNaN(v) || v < 0 || v > PMAX) ? null : v;
   }
 
-  /* 記録の検算。rec = "4L6R5H" のような 2 文字ずつの列。
+  /* 問題。r = 0..5 ／ t = その問を何回目に引いたか */
+  function problem(sid, nonce, r, t){
+    t = t || 0;
+    var sp = SPEC[r], n = sp.n, cap = halvings(n);
+    var asc = ascCards(seedOf(sid, nonce, r, t, 'c'), n);
+    var h = seedOf(sid, nonce, r, t, 'k');
+    if(sp.mode === 'unsorted'){
+      var mixed = shuffle(asc, seedOf(sid, nonce, r, t, 's'));
+      var pos = 1 + (h % n);
+      return { round:r, attempt:t, n:n, mode:'unsorted', cards:mixed, target:mixed[pos-1],
+               targetPos:pos, gap:0, limit:n };
+    }
+    if(sp.mode === 'sorted'){
+      var pool = (n === 8) ? [FIXED_POS_8] : posPool(n);
+      var p = pool[h % pool.length];
+      return { round:r, attempt:t, n:n, mode:'sorted', cards:asc, target:asc[p-1],
+               targetPos:p, gap:0, limit:cap };
+    }
+    var gp = gapPool(n), g = gp[h % gp.length];
+    var tg = asc[g-1] + Math.floor((asc[g] - asc[g-1]) / 2);
+    return { round:r, attempt:t, n:n, mode:'absent', cards:asc, target:tg,
+             gap:g, targetPos:0, limit:cap };
+  }
+
+  /* 記録の検算。rec = "4L6R5H" のような 2 文字ずつの列（位置は 36 進 1 文字）。
      返り値 {ok:真偽, why:理由, moves:手数} */
   function judge(pr, rec){
-    var lo = 1, hi = N, seen = {}, moves = 0;
+    var N = pr.n, lo = 1, hi = N, seen = {}, moves = 0;
     if(typeof rec !== 'string' || rec.length % 2 !== 0) return {ok:false, why:'記録の形が違います', moves:0};
     for(var i = 0; i < rec.length; i += 2){
       var pc = rec.charAt(i), c = rec.charAt(i+1);
@@ -770,7 +1080,7 @@ var PZ = (function(){
         if(i + 2 !== rec.length) return {ok:false, why:'「ない」のあとに操作があります', moves:moves};
         return {ok:true, why:'', moves:moves};
       }
-      var p = pc.charCodeAt(0) - 48;
+      var p = decPos(pc);
       if(!(p >= 1 && p <= N)) return {ok:false, why:'位置が範囲の外です', moves:moves};
       if(seen[p]) return {ok:false, why:'同じカードを 2 度めくっています', moves:moves};
       if(pr.mode !== 'unsorted' && (p < lo || p > hi))
@@ -809,25 +1119,31 @@ var PZ = (function(){
     }
     return crc;
   }
-  function encode(sid, nonce, recs){
-    var body = ID + '-' + normSid(sid) + '-' + nonce + '-' + recs.join('.');
+  /* A02-<学籍番号8>-<乱数札6>-<記録を . でつないだもの>-<予測2文字>-<検査符号4> */
+  function encode(sid, nonce, recs, preds){
+    var ps = '';
+    for(var i = 0; i < PREDS.length; i++) ps += encP(preds && preds[i]);
+    var body = ID + '-' + normSid(sid) + '-' + nonce + '-' + recs.join('.') + '-' + ps;
     var c = crc16(body).toString(16).toUpperCase();
     while(c.length < 4) c = '0' + c;
     return body + '-' + c;
   }
   function decode(code){
-    var m = /^A02-([0-9A-Z]{8})-([0-9A-Z]{6})-([0-9A-Z.\-]*)-([0-9A-F]{4})$/.exec(String(code||'').trim().toUpperCase());
+    var m = /^A02-([0-9A-Z]{8})-([0-9A-Z]{6})-([0-9A-Z.\-]*)-([0-9A-Z\-]{2})-([0-9A-F]{4})$/
+              .exec(String(code||'').trim().toUpperCase());
     if(!m) return null;
-    var body = 'A02-' + m[1] + '-' + m[2] + '-' + m[3];
+    var body = 'A02-' + m[1] + '-' + m[2] + '-' + m[3] + '-' + m[4];
     var c = crc16(body).toString(16).toUpperCase();
     while(c.length < 4) c = '0' + c;
-    if(c !== m[4]) return null;
-    return { sid:m[1], nonce:m[2], recs:m[3].split('.') };
+    if(c !== m[5]) return null;
+    var preds = [];
+    for(var i = 0; i < PREDS.length; i++) preds.push(decP(m[4].charAt(i)));
+    return { sid:m[1], nonce:m[2], recs:m[3].split('.'), preds:preds };
   }
   function verify(code){
     var d = decode(code);
-    if(!d) return {ok:false, why:'コードが読めません', rounds:[]};
-    if(d.recs.length !== ROUNDS) return {ok:false, why:'問の数が合いません', rounds:[]};
+    if(!d) return {ok:false, why:'コードが読めません', rounds:[], preds:[]};
+    if(d.recs.length !== ROUNDS) return {ok:false, why:'問の数が合いません', rounds:[], preds:[]};
     var out = [], all = true;
     for(var r = 0; r < ROUNDS; r++){
       var rec = d.recs[r];
@@ -837,7 +1153,13 @@ var PZ = (function(){
       j.attempt = t;
       out.push(j); if(!j.ok) all = false;
     }
-    return {ok:all, why:all ? '' : '通っていない問があります', sid:d.sid, nonce:d.nonce, rounds:out};
+    var pr = [];
+    for(var k = 0; k < PREDS.length; k++){
+      pr.push({ n:PREDS[k].n, answer:d.preds[k], correct:halvings(PREDS[k].n),
+                ok:(d.preds[k] !== null && d.preds[k] === halvings(PREDS[k].n)) });
+    }
+    return {ok:all, why:all ? '' : '通っていない問があります',
+            sid:d.sid, nonce:d.nonce, rounds:out, preds:pr};
   }
   function newNonce(){
     var A = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', s = '';
@@ -845,11 +1167,14 @@ var PZ = (function(){
     return s;
   }
 
-  return { ID:ID, ROUNDS:ROUNDS, N:N, LIMITS:LIMITS, FIXED_POS:FIXED_POS,
-           GAP_LO:GAP_LO, GAPS:GAPS, TMAX:TMAX,
+  return { ID:ID, ROUNDS:ROUNDS, SPEC:SPEC, PREDS:PREDS, TMAX:TMAX, PMAX:PMAX,
+           FIXED_POS_8:FIXED_POS_8,
+           halvings:halvings, binSteps:binSteps, binAbsent:binAbsent,
+           posPool:posPool, gapPool:gapPool,
            fnv1a:fnv1a, normSid:normSid, validSid:validSid, ascCards:ascCards, shuffle:shuffle,
            problem:problem, judge:judge, crc16:crc16, encode:encode, decode:decode,
-           encT:encT, decT:decT, verify:verify, newNonce:newNonce };
+           encPos:encPos, decPos:decPos, encT:encT, decT:decT, encP:encP, decP:decP,
+           verify:verify, newNonce:newNonce };
 })();
 if(typeof module !== 'undefined' && module.exports) module.exports = PZ;
 /* PZCORE-END A02 */
@@ -897,30 +1222,53 @@ var FX = (function(){
     el.classList.add('bump');
   }
 
-  /* 捨てる側を切り落とす。刃を走らせ、遠いカードから順に落とします */
+  /* 捨てる側を切り落とす。刃を走らせ、遠いカードから順に落とします。
+     ★ 16 枚は 2 行、32 枚は 4 行に置くので、刃は**行ごとに**引きます。
+       1 本で済ませると、行をまたいだ斜めの帯になって、何が切れたのか分かりません。 */
   function cut(layer, board, cards, list, dir){
     if(!layer || !list.length) return;
     var bb = board.getBoundingClientRect();
-    var first = cards[list[0] - 1].getBoundingClientRect();
-    var last = cards[list[list.length - 1] - 1].getBoundingClientRect();
     if(!reduce){
-      var bl = document.createElement('div');
-      bl.className = 'blade';
-      bl.style.left = (first.left - bb.left - 6) + 'px';
-      bl.style.width = (last.right - first.left + 12) + 'px';
-      bl.style.transformOrigin = (dir === 'L') ? 'right center' : 'left center';
-      layer.appendChild(bl);
-      void bl.offsetWidth;
-      bl.classList.add('go');
-      setTimeout(function(){ if(bl.parentNode) bl.parentNode.removeChild(bl); }, 520);
+      var rows = [], byTop = {};
+      list.forEach(function(p){
+        var c = cards[p - 1];
+        if(!c) return;
+        var r = c.getBoundingClientRect(), key = Math.round(r.top);
+        if(!byTop[key]){ byTop[key] = { top:r.top, h:r.height, l:r.left, r:r.right }; rows.push(key); }
+        else { byTop[key].l = Math.min(byTop[key].l, r.left); byTop[key].r = Math.max(byTop[key].r, r.right); }
+      });
+      rows.forEach(function(key, i){
+        var g = byTop[key];
+        var bl = document.createElement('div');
+        bl.className = 'blade';
+        bl.style.left = (g.l - bb.left - 6) + 'px';
+        bl.style.width = (g.r - g.l + 12) + 'px';
+        bl.style.top = (g.top - bb.top - 2) + 'px';
+        bl.style.height = (g.h + 4) + 'px';
+        bl.style.animationDelay = (i * 40) + 'ms';
+        bl.style.transformOrigin = (dir === 'L') ? 'right center' : 'left center';
+        layer.appendChild(bl);
+        void bl.offsetWidth;
+        bl.classList.add('go');
+        setTimeout(function(){ if(bl.parentNode) bl.parentNode.removeChild(bl); }, 560 + i * 40);
+      });
     }
+    /* ★ 32 枚だと 1 手で 16 枚が落ちます。1 枚あたりの間を詰めないと、
+       次の実況が出たあとも落ち続けて、何を見ればよいか分からなくなります。 */
+    var gap = list.length > 12 ? 14 : (list.length > 6 ? 26 : 42);
     list.forEach(function(p, i){
       var c = cards[p - 1];
       if(!c) return;
       var order = (dir === 'L') ? (list.length - 1 - i) : i;   /* 切り口から遠い方が先に落ちます */
       c.style.setProperty('--tilt', rnd(-9, 9).toFixed(1) + 'deg');
       if(reduce){ c.classList.add('out'); return; }
-      setTimeout(function(){ c.classList.add('dying'); }, 60 + order * 42);
+      var t0 = 60 + order * gap;
+      setTimeout(function(){ c.classList.add('dying'); }, t0);
+      /* ★ `die` は fill-mode both なので、終わっても札は 30px 下に居すわります。
+         8 枚（1 行）では下に何も無いので見えませんでしたが、**4 行にすると
+         落ちた札が下の行の生きている札に重なります**（2026-09-21 に実機画で発見）。
+         落ち終わったら外して、薄い型抜きとして定位置へ戻します。 */
+      setTimeout(function(){ c.classList.remove('dying'); }, t0 + 580);
     });
   }
 
@@ -968,12 +1316,13 @@ var FX = (function(){
   }
 
   /* 問の切り替え。間を置くと、3 問が「つづき」に感じられます */
-  function curtain(n, title, rule){
+  function curtain(n, title, rule, note){
     var c = document.getElementById('curtain');
     if(!c) return wait(0);
     c.innerHTML = '<div><div class="ct-n">問 ' + n + '</div>'
                 + '<div class="ct-t">' + title + '</div>'
-                + '<div class="ct-r">' + rule + '</div></div>';
+                + '<div class="ct-r">' + rule + '</div>'
+                + (note ? '<div class="ct-p">' + note + '</div>' : '') + '</div>';
     c.classList.remove('on'); void c.offsetWidth; c.classList.add('on');
     var d = reduce ? 40 : 1500;
     setTimeout(function(){ c.classList.remove('on'); }, d);
@@ -1000,12 +1349,14 @@ var FX = (function(){
     }
     var t = '';
     for(var k = 0; k < tally.length; k++){
-      t += '<span style="animation-delay:' + (0.84 + k * 0.09).toFixed(2) + 's">問' + (k+1)
+      t += '<span style="animation-delay:' + (0.84 + k * 0.07).toFixed(2) + 's">問' + (k+1)
          + ' <b>' + tally[k] + '</b> 手</span>';
     }
+    var sum = 0;
+    for(var m = 0; m < tally.length; m++) sum += tally[m] || 0;
     f.innerHTML = '<div class="fin-rays"></div><div class="fin-in">'
                 + '<div class="fin-word">' + w + '</div>'
-                + '<div class="fin-sub">3 問つづけて通りました</div>'
+                + '<div class="fin-sub">' + tally.length + ' 問を あわせて ' + sum + ' 手</div>'
                 + '<div class="fin-tally">' + t + '</div></div>';
     f.classList.remove('on'); void f.offsetWidth; f.classList.add('on');
     var d = reduce ? 60 : 3100;
@@ -1031,6 +1382,119 @@ var FX = (function(){
 
   return { reduce:reduce, roll:roll, bump:bump, cut:cut, burst:burst, stamp:stamp, finale:finale,
            flash:flash, shake:shake, bad:bad, curtain:curtain, scramble:scramble, wait:wait };
+})();
+
+</script>
+<script>
+/* ==========================================================================
+   記録の送り先。GAS（Google Apps Script）の web アプリへ投げ、
+   スプレッドシートに 1 行ずつ足してもらいます。
+
+   ★ 送り先が決まっていないとき（下の URL が空）は、送る道を閉じて
+     コードを控える道だけにします。作っている途中でも、アプリは動きます。
+   ★ つながっていないときは端末に貯めて、次に開いたときに送ります。
+     **貯めたものが送れるまで、コードの控えは消しません。**
+   ★ Content-Type は text/plain にします。application/json にすると
+     ブラウザが先に OPTIONS を投げ、GAS はそれに答えないので落ちます。
+   ========================================================================== */
+var NET = (function(){
+  var URL = 'https://script.google.com/macros/s/AKfycbwWE4sn9q-0UtK95vcqHFSCjzbEQeuYcakv2dUWlxybP7JAodbWE6FZABI6lfr7_Bkd/exec';
+  var QKEY = 'algo.queue';
+  var on = /^https:\/\//.test(URL);
+
+  function store(k, v){
+    try{
+      if(v === undefined) return localStorage.getItem(k);
+      localStorage.setItem(k, v);
+    }catch(e){}
+    return null;
+  }
+  function num(k){ var v = parseInt(store(k), 10); return isNaN(v) ? 0 : v; }
+  function bump(k){ var v = num(k) + 1; store(k, String(v)); return v; }
+
+  /* 画面には出しません。先生が名簿の横で見るためだけの数です */
+  function meta(extra){
+    var m = {
+      opens: num('algo.opens'),
+      away: num('algo.away'),
+      tz: '', w: 0, h: 0, at: new Date().toISOString()
+    };
+    try{ m.tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; }catch(e){}
+    try{ m.w = window.screen.width | 0; m.h = window.screen.height | 0; }catch(e){}
+    if(extra) for(var k in extra){ if(Object.prototype.hasOwnProperty.call(extra, k)) m[k] = extra[k]; }
+    return m;
+  }
+
+  function readQueue(){
+    try{ return JSON.parse(store(QKEY) || '[]'); }catch(e){ return []; }
+  }
+  function writeQueue(q){ store(QKEY, JSON.stringify(q.slice(-40))); }
+  function enqueue(op, data){
+    var q = readQueue();
+    q.push({ op:op, data:data, t:Date.now() });
+    writeQueue(q);
+  }
+
+  function raw(op, data){
+    return fetch(URL, {
+      method: 'POST',
+      /* ★ 先読みの問い合わせ（OPTIONS）を起こさない形に留めます */
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ op:op, data:data }),
+      redirect: 'follow'
+    }).then(function(r){ return r.text(); }).then(function(t){
+      var j = null;
+      try{ j = JSON.parse(t); }catch(e){}
+      if(!j) throw new Error('返事が読めません');
+      return j;
+    });
+  }
+
+  /* 送る。落ちたら貯めます（貯めたことは画面に出しますが、中身は出しません） */
+  function post(op, data){
+    if(!on) return Promise.reject(new Error('送り先がありません'));
+    return raw(op, data).catch(function(e){
+      enqueue(op, data);
+      throw e;
+    });
+  }
+  /* 返事が要る用（まとめの問題を受け取る）。貯めても意味がないので貯めません */
+  function ask(op, data){
+    if(!on) return Promise.reject(new Error('送り先がありません'));
+    return raw(op, data);
+  }
+
+  /* 貯めたものを送り直します。1 つでも落ちたら、そこで止めて残します */
+  function flush(){
+    if(!on) return Promise.resolve(0);
+    var q = readQueue();
+    if(!q.length) return Promise.resolve(0);
+    var sent = 0;
+    function step(){
+      if(!q.length){ writeQueue(q); return sent; }
+      var it = q[0];
+      return raw(it.op, it.data).then(function(){
+        q.shift(); sent++; writeQueue(q);
+        return step();
+      }, function(){ writeQueue(q); return sent; });
+    }
+    return Promise.resolve().then(step);
+  }
+  function pending(){ return readQueue().length; }
+
+  function boot(){
+    bump('algo.opens');
+    try{
+      document.addEventListener('visibilitychange', function(){
+        if(document.visibilityState === 'hidden') bump('algo.away');
+      });
+    }catch(e){}
+    try{ window.addEventListener('online', function(){ flush(); }); }catch(e){}
+    setTimeout(function(){ flush(); }, 1200);
+  }
+
+  return { on:on, post:post, ask:ask, flush:flush, pending:pending,
+           meta:meta, bump:bump, num:num, boot:boot };
 })();
 
 </script>
@@ -1067,17 +1531,21 @@ var READY = { 2:true };
 
 /* ------------------------------------------------------------------ 状態 */
 var S = { sid:'', lesson:0, nonce:'', round:0, pr:null, lo:1, hi:8,
-          rec:'', recs:[], att:[0,0,0], pending:0, over:false, code:'',
-          startedAt:0, tally:[], hist:[] };
+          rec:'', recs:[], att:[], preds:[], predAt:-1,
+          pending:0, over:false, code:'',
+          startedAt:0, tally:[], hist:[],
+          quiz:{ items:[], at:0, picks:[], token:'' } };
 var el = {};
 function $(id){ return document.getElementById(id); }
 function store(k, v){ try{ if(v === undefined) return localStorage.getItem(k);
                             localStorage.setItem(k, v); }catch(e){} return null; }
 function buzz(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms); }catch(e){} }
+function esc(s){ return String(s).replace(/[&<>"]/g, function(c){
+  return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); }
 
 /* ------------------------------------------------------------------ 画面 */
 function show(name){
-  ['gate','list','play','done'].forEach(function(n){
+  ['gate','list','pred','play','quiz','done'].forEach(function(n){
     $('s-' + n).classList.toggle('on', n === name);
   });
   window.scrollTo(0, 0);
@@ -1122,7 +1590,7 @@ function lessonOf(n){
 function cap(n){
   var e = $('cap'), it = lessonOf(n);
   if(!e) return;
-  e.innerHTML = it ? ('<b>第' + it[0] + '回　' + it[1] + '</b><br>' + it[2]
+  e.innerHTML = it ? ('<b>第' + it[0] + '回　' + esc(it[1]) + '</b><br>' + esc(it[2])
                       + (READY[it[0]] ? '' : '　／　準備中')) : '';
 }
 function buildList(){
@@ -1136,8 +1604,8 @@ function buildList(){
     h += '<div class="lab-s">いま解ける回</div>'
        + '<button class="row' + cl + '" data-lesson="' + ready[0] + '">'
        + '<span class="no tnum">' + ready[0] + '</span>'
-       + '<span class="tx"><span class="tt">' + ready[1] + '</span>'
-       + '<span class="ds">' + ready[2] + '</span></span>'
+       + '<span class="tx"><span class="tt">' + esc(ready[1]) + '</span>'
+       + '<span class="ds">' + esc(ready[2]) + '</span></span>'
        + '<span class="go">' + (cl ? 'もう一度' : '解く') + '</span></button>';
   }
   h += '<div class="lab-s lab-map">15 回</div><div class="map">';
@@ -1157,28 +1625,98 @@ function buildList(){
   cap(ready ? ready[0] : 0);
 }
 
+/* ------------------------------------------------------------------ 流れ */
+/* ★ 場面転換に鍵をかけます。幕は 1 秒ほど出ていて、そのあいだ画面は前のままです。
+   鍵がないと「答える」や回の行を二度タップしたときに幕が二重に上がり、
+   **あとから開いた幕が、すでに打った手を消します**（startRound が S.rec を空にするため）。
+   2026-09-21 に、問3 で 3 手打ったのに記録が 1 手になって見つかりました。
+   GEN  … 回の世代。一覧へ戻ったあとに古い幕が開いても、組み直さない
+   TRANS … 幕が上がっている最中かどうか。二度目の求めは捨てる */
+var GEN = 0, TRANS = 0;
+function leave(){ GEN++; TRANS = 0; buildList(); show('list'); }
+/* 6 問のあいだに、予測を 2 つ挟みます（16 枚の手前と 32 枚の手前）。
+   答えは止めずに記録し、直後の幕で「半分にできる回数」と並べます。 */
+function predIndexBefore(r){
+  for(var i = 0; i < PZ.PREDS.length; i++){
+    if(PZ.PREDS[i].before === r && S.preds[i] === undefined) return i;
+  }
+  return -1;
+}
+function goRound(r){
+  var pi = predIndexBefore(r);
+  if(pi >= 0){ openPred(pi, r); return; }
+  openRound(r);
+}
+
+/* ---- 予測の段 ---- */
+function openPred(i, nextRound){
+  if(TRANS) return;
+  S.predAt = i;
+  var gen = GEN;
+  var n = PZ.PREDS[i].n, prev = (i === 0) ? 8 : PZ.PREDS[i-1].n;
+  $('pred-n').textContent = n;
+  $('pred-q').textContent = '半分にしていくと、何回で 1 枚になりますか';
+  /* ★ 欄には前の列の答えを入れておきます。押すだけで進めますが、
+     そのままだと外れます。出どころを書いておかないと、外れる理由が分かりません。 */
+  $('pred-note').innerHTML = prev + ' 枚は <b>' + PZ.halvings(prev) + '</b> 回でした。つぎは '
+                           + n + ' 枚です。';
+  var v = $('pred-v');
+  v.value = String(PZ.halvings(prev));
+  $('pred-go').disabled = false;
+  $('pred-go').onclick = function(){
+    if(gen !== GEN || TRANS) return;
+    $('pred-go').disabled = true;          /* 二度押しをここで止めます */
+    var x = parseInt(String(v.value).replace(/[^0-9]/g, ''), 10);
+    S.preds[i] = isNaN(x) ? null : Math.max(0, Math.min(PZ.PMAX, x));
+    S.predAt = -1;
+    openRound(nextRound);
+  };
+  show('pred');
+  FX.bump($('pred-n'));
+}
+
 /* ---- 演習 ---- */
-/* 幕で問を区切ります。3 問が「つづき」であることが、間で伝わります */
+/* 幕で問を区切ります。6 問が「つづき」であることが、間で伝わります */
 function openRound(r){
+  if(TRANS) return;                        /* すでに幕が上がっています。二度目は捨てます */
+  TRANS = 1;
+  var gen = GEN;
   var pr = PZ.problem(S.sid, S.nonce, r, S.att[r]);
-  FX.curtain(r + 1,
-             pr.mode === 'unsorted' ? 'ばらばらに置いてあります' : '小さい順に並んでいます',
-             (S.att[r] ? (S.att[r] + 1) + ' 回目　' : '') + '上限 ' + pr.limit + ' 手'
-            ).then(function(){ startRound(r); });
+  var title = pr.n + ' 枚　'
+            + (pr.mode === 'unsorted' ? 'ばらばらに置いてあります' : '小さい順に並んでいます');
+  var rule = (S.att[r] ? (S.att[r] + 1) + ' 回目　' : '') + '上限 ' + pr.limit + ' 手';
+  /* 予測の直後だけ、予測と「半分にできる回数」を並べます */
+  var note = '';
+  for(var i = 0; i < PZ.PREDS.length; i++){
+    if(PZ.PREDS[i].before === r && S.preds[i] !== undefined){
+      var ans = PZ.halvings(PZ.PREDS[i].n);
+      note = 'あなたの予測 ' + (S.preds[i] === null ? '—' : S.preds[i])
+           + '　／　半分にできる回数 ' + ans + '　／　上限 ' + ans + ' 手';
+    }
+  }
+  FX.curtain(r + 1, title, rule, note).then(function(){
+    TRANS = 0;
+    if(gen !== GEN) return;                /* 幕のあいだに一覧へ戻っています */
+    startRound(r);
+  });
 }
 function startLesson(n){
-  S.lesson = n; S.nonce = PZ.newNonce(); S.recs = []; S.tally = []; S.att = [0, 0, 0];
+  GEN++; TRANS = 0;                        /* 前の回の幕が残っていても、ここで切ります */
+  S.lesson = n; S.nonce = PZ.newNonce(); S.recs = []; S.tally = [];
+  S.att = []; S.preds = []; S.predAt = -1;
+  for(var i = 0; i < PZ.ROUNDS; i++) S.att.push(0);
   S.startedAt = Date.now();
   /* ★ 先に画面を出してから組みます。出す前に測ると、高さが全部 0 になり、
      「入らない」と判定して、入るはずの端末でも畳んでしまいます（2026-09-21 に実測）。 */
   show('play');
-  openRound(0);     /* ★ 幕のあとに組みます。ここで startRound を直に呼ぶと二重に組まれ、
+  goRound(0);       /* ★ 幕のあとに組みます。ここで startRound を直に呼ぶと二重に組まれ、
                        めくった札が途中で戻ります */
 }
 function startRound(r){
+  show('play');
   S.round = r;
   S.pr = PZ.problem(S.sid, S.nonce, r, S.att[r]);
-  S.lo = 1; S.hi = PZ.N; S.rec = ''; S.pending = 0; S.over = false; S.hist = [];
+  S.lo = 1; S.hi = S.pr.n; S.rec = ''; S.pending = 0; S.over = false; S.hist = [];
   drawBoard();
   drawPips(S.pr.limit);
   paint();
@@ -1186,13 +1724,15 @@ function startRound(r){
   say(intro(), '');
   FX.bump($('q-num'));
 }
+/* ★ 32 枚では盤が 210px 使うので、実況に 3 行ぶんの場所がありません。
+   長い文を置くと、器の中で黙って切られます（2026-09-21 に 553px の実機画で発見）。
+   枚数は「候補」の札と帯の下が出しているので、ここでは繰り返しません。 */
 function intro(){
   var p = S.pr;
   if(p.mode === 'unsorted')
-    return '<b>ばらばらに置いてあります。</b>カードを 1 枚ずつめくって、'
-         + '<span class="hl">' + p.target + '</span> を探してください。';
-  return '<b>小さい順に並んでいます。</b><span class="hl">' + p.target + '</span> を探してください。'
-       + 'この列に入っていないこともあります。';
+    return '<b>ばらばらです。</b>1 枚ずつめくって <span class="hl">' + p.target + '</span> を探してください。';
+  return '<b>小さい順です。</b><span class="hl">' + p.target + '</span> を探してください。'
+       + '入っていないこともあります。';
 }
 function drawPips(limit){
   var h = '';
@@ -1207,21 +1747,39 @@ function setPips(moves, limit){
   }
 }
 function drawBoard(){
-  var c = '', ix = '';
-  for(var i = 1; i <= PZ.N; i++){
+  var n = S.pr.n, c = '';
+  for(var i = 1; i <= n; i++){
     c += '<button class="card" data-p="' + i + '" aria-label="' + i + ' 枚目">'
-       + '<span class="inner"><span class="face b"></span>'
+       + '<span class="inner">'
+       + '<span class="face b"><span class="ix tnum">' + i + '</span></span>'
        + '<span class="face f"><span class="n tnum"></span></span></span></button>';
-    ix += '<span class="idx tnum" data-i="' + i + '">' + i + '</span>';
   }
   el.cards.innerHTML = c;
-  el.idxs.innerHTML = ix;
+  /* ★ 帯は left と width が動きます。問が変わるとき、前の問の終わり（たとえば左 75%）から
+     新しい問のはじめ（左 0%・幅 100%）へ動くので、**その途中は器の右へ 75% はみ出します**。
+     器は overflow:hidden なので目には見えませんが、矩形は外にあり、検査が間欠で落ちます
+     （2026-09-21・iPad 横 1180px で 726→1270px。2 回に 1 回だけ鳴っていました）。
+     盤を組み直すときに、動かさずに戻します。 */
+  var bd = el.band.firstElementChild;
+  bd.style.transition = 'none';
+  bd.style.left = '0%';
+  bd.style.right = '0%';
+  bd.style.width = '';
+  bd.style.opacity = 0;
+  void bd.offsetWidth;
+  bd.style.transition = '';
+  el.board.setAttribute('data-n', String(n));
+  /* ★ 札が増えたぶん、盤の上の飾りに場所をゆずらせます。
+     32 枚の盤は 210px 使うので、553px の端末では「さがす数」の札と並びの説明が
+     そのまま 31px のあふれになります（2026-09-21 に実測）。CSS から見えるよう、
+     囲いの側にも枚数を書きます（盤は quest より後ろにあって、CSS では遡れません）。 */
+  el.play.setAttribute('data-n', String(n));
 }
 function paint(){
-  var p = S.pr, flipped = {}, i;
+  var p = S.pr, n = p.n, flipped = {}, i;
   for(i = 0; i < S.rec.length; i += 2){
     var ch = S.rec.charAt(i);
-    if(ch !== '0') flipped[ch.charCodeAt(0) - 48] = 1;
+    if(ch !== '0') flipped[PZ.decPos(ch)] = 1;
   }
   var settled = Object.keys(flipped).length;     /* 記録に入った枚数 */
   if(S.pending) flipped[S.pending] = 1;
@@ -1229,13 +1787,14 @@ function paint(){
 
   $('play-step').textContent = '問 ' + (S.round + 1) + ' / ' + PZ.ROUNDS;
   $('q-num').textContent = p.target;
-  $('q-cond').textContent = p.mode === 'unsorted' ? 'ばらばらに置いてあります' : '小さい順に並んでいます';
+  $('q-cond').textContent = n + ' 枚　'
+    + (p.mode === 'unsorted' ? 'ばらばらに置いてあります' : '小さい順に並んでいます');
   setPips(moves, p.limit);
   $('m-wrap').classList.toggle('warn', moves >= p.limit - 1 && !S.over);
-  FX.roll($('m-left'), (p.mode === 'unsorted') ? PZ.N - settled : Math.max(0, S.hi - S.lo + 1));
+  FX.roll($('m-left'), (p.mode === 'unsorted') ? n - settled : Math.max(0, S.hi - S.lo + 1));
 
   var nodes = el.cards.children;
-  for(i = 1; i <= PZ.N; i++){
+  for(i = 1; i <= n; i++){
     var b = nodes[i-1], inRange = (p.mode === 'unsorted') ? true : (i >= S.lo && i <= S.hi);
     b.classList.toggle('flip', !!flipped[i]);
     b.classList.toggle('out', !inRange && !(S.pending === i));
@@ -1245,23 +1804,26 @@ function paint(){
     b.classList.toggle('hit', !!flipped[i] && p.cards[i-1] === p.target && S.over);
     b.disabled = S.over || !!S.pending || !!flipped[i] || (p.mode !== 'unsorted' && !inRange);
     if(flipped[i]) b.querySelector('.n').textContent = p.cards[i-1];
-    el.idxs.children[i-1].classList.toggle('in', inRange && !flipped[i]);
   }
-  /* 残っている範囲の帯 */
+  /* 残っている範囲の帯。行をまたぐので、位置と広さを 1 本に落とします
+     （左端＝1 枚目、右端＝n 枚目。長さがそのまま候補の数です） */
   el.band.style.display = (p.mode === 'unsorted') ? 'none' : '';
   var band = el.band.firstElementChild;
-  if(p.mode === 'unsorted' || S.lo > S.hi){ band.style.opacity = 0; }
-  else{
-    var a = nodes[S.lo-1], z = nodes[S.hi-1], base = el.cards.getBoundingClientRect();
-    var ra = a.getBoundingClientRect(), rz = z.getBoundingClientRect();
+  if(p.mode === 'unsorted' || S.lo > S.hi){
+    band.style.opacity = 0;
+  }else{
     band.style.opacity = 1;
-    band.style.left = (ra.left - base.left) + 'px';
-    band.style.width = (rz.right - ra.left) + 'px';
+    /* ★ 幅ではなく左右の余白で決めます。どちらも 0〜100% の中に収まるので、
+       動いている途中でも器の外へ出ません */
+    band.style.left  = (100 * (S.lo - 1) / n) + '%';
+    band.style.right = (100 * (n - S.hi) / n) + '%';
   }
   drawCmp(p, moves);
-  $('band-lab').textContent = (p.mode === 'unsorted')
-    ? 'まだめくっていないカード ' + (PZ.N - settled) + ' 枚'
-    : (S.lo > S.hi ? '残っている範囲はありません' : '残っている範囲 ' + S.lo + ' 〜 ' + S.hi);
+  /* ★ 32 枚では並びの説明を上から外すので、その言葉をここが引き取ります */
+  var head = (n >= 32) ? ((p.mode === 'unsorted') ? 'ばらばら　' : '小さい順　') : '';
+  $('band-lab').textContent = head + ((p.mode === 'unsorted')
+    ? 'まだめくっていないカード ' + (n - settled) + ' 枚'
+    : (S.lo > S.hi ? '残っている範囲はありません' : '残っている範囲 ' + S.lo + ' 〜 ' + S.hi));
 
   var can = !!S.pending && !S.over;
   if(p.mode === 'unsorted'){
@@ -1339,12 +1901,12 @@ function fitHist(){
     if(box.scrollHeight > box.clientHeight + 1) foldAll();
   }
 }
-/* 端から順と、真ん中から半分にする手数をならべ、いまの手数をその上に重ねます。
-   同じ 8 枚でも手間の桁が変わることが、棒の長さで見えます */
+/* 端から順と、半分にしていく手数をならべ、いまの手数をその上に重ねます。
+   同じ列でも手間の桁が変わることが、棒の長さで見えます */
 function drawCmp(p, moves){
   var un = (p.mode === 'unsorted');
-  var worst = PZ.N;                 /* 端から順の最悪 */
-  var best = p.limit;               /* 真ん中から聞いたときの上限 */
+  var worst = p.n;                  /* 端から順の最悪 */
+  var best = p.limit;               /* 半分にしていったときの上限 */
   var sc = Math.max(worst, moves, 1);
   $('c-lin').style.width = (100 * worst / sc) + '%';
   /* ★ 並んでいない列では、半分に絞れません。棒を伸ばすと「同じ速さ」に見えるので、空のままにします */
@@ -1370,29 +1932,27 @@ function flip(p){
   /* ★ 当たりは「ここだ」を押させません。めくった時点で決まります（本人 2026-09-21） */
   if(v === S.pr.target){
     S.pending = 0;
-    finishRound(S.rec + String(p) + 'H');
+    finishRound(S.rec + PZ.encPos(p) + 'H');
     return;
   }
   /* 並んでいない列では、片側を捨てられません。めくったらそのまま次へ進みます */
-  if(S.pr.mode === 'unsorted' && v !== S.pr.target){
-    S.rec += String(p) + '-';
+  if(S.pr.mode === 'unsorted'){
+    S.rec += PZ.encPos(p) + '-';
     S.pending = 0;
     S.hist.push({p:p, v:v, what:'さがす数ではありません。', range:''});
     paint(); drawHist();
-    say('<span class="hl">' + v + '</span> が出ました。さがしているのは <b>' + S.pr.target
-      + '</b> です。並んでいないので、この 1 枚から他のカードのことは分かりません。'
-      + '次をめくってください。', '');
+    say('<span class="hl">' + v + '</span> が出ました。さがすのは <b>' + S.pr.target
+      + '</b> です。並んでいないので、この 1 枚から他は分かりません。次をめくってください。', '');
     return;
   }
   S.pending = p;
   paint();
-  if(moves + 1 >= S.pr.limit && S.pr.cards[p-1] !== S.pr.target){
-    say('<b>' + p + ' 枚目</b>は <span class="hl">' + v + '</span> でした。'
-      + 'さがす数とくらべて、次をえらんでください。<br>'
-      + 'これで手数は <span class="hl">' + (moves+1) + '</span> です。上限は ' + S.pr.limit + ' 手です。', '');
+  if(moves + 1 >= S.pr.limit){
+    say('<b>' + p + ' 枚目</b>は <span class="hl">' + v + '</span>。くらべて次をえらびます。'
+      + 'これで <span class="hl">' + (moves+1) + '</span> 手め、上限は ' + S.pr.limit + ' 手です。', '');
   }else{
     say('<b>' + p + ' 枚目</b>は <span class="hl">' + v + '</span> でした。'
-      + 'さがす数とくらべて、次をえらんでください。', '');
+      + 'さがす数とくらべて、次をえらびます。', '');
   }
 }
 function choose(c){
@@ -1400,7 +1960,7 @@ function choose(c){
   if(c === 'N'){
     if(p.mode === 'absent' && S.lo > S.hi){ finishRound(S.rec + '0N'); return; }
     if(p.mode === 'unsorted'){
-      say('<b>ばらばらの列では、まだ言えません。</b>めくっていないカードに何があるかは分かりません。'
+      say('<b>ばらばらでは、まだ言えません。</b>'
         + '全部めくるまで、無いとは言い切れません。', '');
       return;
     }
@@ -1410,23 +1970,22 @@ function choose(c){
   /* ばらばらの列では、左右を捨てられません。ここは失敗にしません */
   if(p.mode === 'unsorted' && (c === 'L' || c === 'R')){
     say('<b>ばらばらなので、捨てられません。</b>' + (c === 'L' ? '左' : '右')
-      + 'に何があるかは、めくるまで分かりません。片側を捨てられるのは、並んでいる列だけです。', '');
+      + 'に何があるかは、めくるまで分かりません。', '');
     return;
   }
   if(!pos) return;
   var v = p.cards[pos-1];
-  if(p.mode === 'unsorted'){ /* ここには来ません */ return; }
   var want = (v < p.target) ? 'L' : 'R';
   if(c !== want){
     fail('<b>' + v + '</b> は <b>' + p.target + '</b> より' + (v < p.target ? '小さい' : '大きい')
        + 'ので、捨てるのは' + (v < p.target ? '左' : '右') + '側です。', 'a-' + c.toLowerCase());
     return;
   }
-  S.rec += String(pos) + c;
+  S.rec += PZ.encPos(pos) + c;
   S.pending = 0;
-  var gone = [];
-  if(c === 'L'){ for(var q = S.lo; q <= pos; q++) gone.push(q); }
-  else         { for(var q2 = pos; q2 <= S.hi; q2++) gone.push(q2); }
+  var gone = [], q;
+  if(c === 'L'){ for(q = S.lo; q <= pos; q++) gone.push(q); }
+  else         { for(q = pos; q <= S.hi; q++) gone.push(q); }
   if(c === 'L') S.lo = Math.max(S.lo, pos + 1); else S.hi = Math.min(S.hi, pos - 1);
   FX.cut(el.fx, el.board, el.cards.children, gone, c);
   buzz(14);
@@ -1435,17 +1994,15 @@ function choose(c){
                what:(v < p.target ? '小さいので左を捨てました。' : '大きいので右を捨てました。'),
                range:(S.lo > S.hi ? '残り 0' : S.lo + '〜' + S.hi)});
   paint(); drawHist();
+  var head = '<b>' + v + '</b> は <b>' + p.target + '</b> より' + (v < p.target ? '小さい' : '大きい') + 'ので、';
   if(S.lo > S.hi){
-    say('<b>' + v + '</b> は <b>' + p.target + '</b> より' + (v < p.target ? '小さい' : '大きい')
-      + 'ので、' + (v < p.target ? pos + ' 番目より左' : pos + ' 番目より右')
-      + 'は捨てられます。<b>残っている範囲がなくなりました。</b>', '');
+    say(head + (v < p.target ? '左' : '右') + 'は捨てられます。'
+      + '<b>残っている範囲がなくなりました。</b>', '');
   }else if(moves >= p.limit){
-    say('<b>' + v + '</b> は <b>' + p.target + '</b> より' + (v < p.target ? '小さい' : '大きい')
-      + 'ので、残りは <span class="hl">' + S.lo + ' 〜 ' + S.hi + '</span> です。'
-      + 'これが最後の 1 手です。', '');
+    say(head + '残りは <span class="hl">' + S.lo + ' 〜 ' + S.hi + '</span>。これが最後の 1 手です。', '');
   }else{
-    say('<b>' + v + '</b> は <b>' + p.target + '</b> より' + (v < p.target ? '小さい' : '大きい')
-      + 'ので、残りは <span class="hl">' + S.lo + ' 〜 ' + S.hi + '</span> です。', '');
+    say(head + '残りは <span class="hl">' + S.lo + ' 〜 ' + S.hi + '</span>、'
+      + '候補 <span class="hl">' + (S.hi - S.lo + 1) + '</span> 枚になりました。', '');
   }
   if(S.lo > S.hi && p.mode !== 'absent'){
     /* 目的があるのに範囲が空 = 手順を誤っています。ここには正しく進めば来ません */
@@ -1456,12 +2013,13 @@ function fail(why, btn){
   S.over = true; buzz([12, 60, 12]); paint();
   FX.shake(el.board); FX.flash('ng'); if(btn) FX.bad($(btn));
   FX.stamp('おしい', 'miss');
-  say((why ? why + '<br>' : '') + '<b>この問だけ、新しい札で引き直します。</b>'
-    + '通った問はそのままです。', 'ng');
+  say((why ? why + '<br>' : '') + '<b>この問だけ引き直します。</b>通った問はそのままです。', 'ng');
   $('a-l').disabled = $('a-r').disabled = $('a-n').disabled = true;
+  var gen = GEN, rr = S.round;
   setTimeout(function(){
-    S.att[S.round]++;      /* ★ その問だけ引き直します。1 問目には戻りません（本人 2026-09-21） */
-    openRound(S.round);
+    if(gen !== GEN) return;
+    S.att[rr]++;           /* ★ その問だけ引き直します。1 問目には戻りません（本人 2026-09-21） */
+    openRound(rr);
   }, 2300);
 }
 function finishRound(rec){
@@ -1472,39 +2030,172 @@ function finishRound(rec){
   drawHist();
   S.rec = rec; S.over = true; S.pending = 0; buzz(24);
   S.recs[S.round] = PZ.encT(S.att[S.round]) + rec; S.tally[S.round] = j.moves;
-  var hitPos = (rec.slice(-2) === '0N') ? 0 : (rec.charCodeAt(rec.length - 2) - 48);
+  var hitPos = (rec.slice(-2) === '0N') ? 0 : PZ.decPos(rec.charAt(rec.length - 2));
   paint();
   if(hitPos) FX.burst(el.fx, el.cards.children[hitPos - 1]);
   FX.flash('ok');
   FX.stamp(hitPos ? '正解！' : 'この列には無い！');
   var p = S.pr, tail;
   if(p.mode === 'unsorted')
-    tail = '<b>' + j.moves + ' 手</b>で見つかりました。ばらばらの列では、端から順にめくるほかにやり方がありません。';
+    tail = '<b>' + j.moves + ' 手</b>で見つかりました。ばらばらでは、端から順にめくるほかにありません。';
   else if(p.mode === 'absent')
-    tail = '<b>' + j.moves + ' 手</b>で、この列に無いと言い切れました。範囲が空になったことが根拠です。';
+    tail = '<b>' + j.moves + ' 手</b>で、無いと言い切れました。範囲が空になったことが根拠です。';
   else
-    tail = '<b>' + j.moves + ' 手</b>で見つかりました。8 枚を端から順にめくると、最大 8 手かかります。';
+    tail = '<b>' + j.moves + ' 手</b>で見つかりました。端から順にめくると、最大 ' + p.n + ' 手です。';
   say(tail, 'ok');
+  var r = S.round, gen = GEN;
   setTimeout(function(){
-    if(S.round + 1 < PZ.ROUNDS){
-      var nr = S.round + 1;
-      openRound(nr);
-    }else{
-      FX.finale(S.tally).then(finishAll);
-    }
+    if(gen !== GEN) return;
+    if(r + 1 < PZ.ROUNDS) goRound(r + 1);
+    else FX.finale(S.tally).then(function(){ if(gen === GEN) finishAll(); });
   }, 1500);
 }
+
+/* ------------------------------------------------------------------ 提出 */
 function finishAll(){
-  S.code = PZ.encode(S.sid, S.nonce, S.recs);
+  S.code = PZ.encode(S.sid, S.nonce, S.recs, S.preds);
   store('algo.clear.' + S.lesson, '1');
+  store('algo.code.' + S.lesson, S.code);
   FX.scramble($('code'), S.code);
-  var mm = Math.round((Date.now() - S.startedAt) / 1000);
+  var mm = Math.round((Date.now() - S.startedAt) / 1000), sum = 0;
+  for(var i = 0; i < S.tally.length; i++) sum += S.tally[i] || 0;
+  /* ★ 問ごとに 1 つずつ丸を置くと 7 つになり、375px では 3 行に折り返して
+     「まとめの問題へ」を押す所ごと縮めます（2026-09-21 に実測）。2 つにまとめます。 */
   $('tally').innerHTML =
-      '<span>問1 <b>' + S.tally[0] + '</b> 手</span>'
-    + '<span>問2 <b>' + S.tally[1] + '</b> 手</span>'
-    + '<span>問3 <b>' + S.tally[2] + '</b> 手</span>'
-    + '<span>かかった時間 <b>' + Math.floor(mm/60) + '</b> 分 <b>' + (mm%60) + '</b> 秒</span>';
+      '<span>' + PZ.ROUNDS + ' 問 あわせて <b>' + sum + '</b> 手</span>'
+    + '<span><b>' + Math.floor(mm/60) + '</b> 分 <b>' + (mm%60) + '</b> 秒</span>';
+  $('perq').textContent = '問ごと ' + S.tally.join(' ・ ') + ' 手';
+  $('done-h').textContent = PZ.ROUNDS + ' 問つづけて通りました';
+  paintQuizButton();
   show('done');
+  sendClear(mm);
+}
+function paintQuizButton(){
+  var b = $('to-quiz'), done = store('algo.quizdone.' + S.lesson);
+  if(done){
+    b.textContent = 'まとめの問題は受け付けています';
+    b.disabled = true;
+    $('done-sub').textContent = 'おつかれさまでした';
+  }else{
+    b.textContent = 'まとめの問題へ';
+    b.disabled = false;
+    $('done-sub').textContent = 'つづけて、まとめの問題に答えます';
+  }
+}
+function setSend(kind, msg, retry){
+  var box = $('sendbox');
+  box.classList.toggle('ok', kind === 'ok');
+  box.classList.toggle('ng', kind === 'ng');
+  box.classList.toggle('note', kind === 'note');
+  $('send-msg').textContent = msg;
+  $('send-retry').hidden = !retry;
+}
+function sendClear(secs){
+  if(!NET.on){
+    /* ★ ここで折りたたみを自動で開くと、背の低い端末では一枚に収まりません。
+       開くのは学生の 1 タップにします。 */
+    setSend('note', '下の「コードを表示する」から控えて提出してください', false);
+    return;
+  }
+  setSend('', '記録を送っています', false);
+  NET.post('clear', {
+    code: S.code, lesson: S.lesson, sid: S.sid,
+    moves: S.tally, retries: S.att, preds: S.preds, secs: secs,
+    meta: NET.meta({ nonce: S.nonce })
+  }).then(function(res){
+    if(res && res.ok) setSend('ok', '記録を送りました', false);
+    else setSend('ng', (res && res.why) || '受け取ってもらえませんでした', true);
+  }, function(){
+    setSend('ng', 'いま送れません。つながったときに送ります', true);
+  });
+}
+
+/* ------------------------------------------------------------------ まとめの問題 */
+function openQuiz(){
+  show('quiz');
+  $('quiz-main').hidden = true;
+  $('quiz-load').hidden = false;
+  $('quiz-load-msg').textContent = '問題を受け取っています';
+  $('quiz-step').textContent = '';
+  $('quiz-next').disabled = true;
+  if(!NET.on){
+    $('quiz-load-msg').textContent = 'いまは問題を出せません。授業の案内を見てください。';
+    return;
+  }
+  NET.ask('quizOpen', {
+    code: S.code, lesson: S.lesson, sid: S.sid, meta: NET.meta({ nonce: S.nonce })
+  }).then(function(res){
+    if(!res || !res.ok || !res.items || !res.items.length) throw new Error('empty');
+    S.quiz.items = res.items;
+    S.quiz.token = res.token || '';
+    S.quiz.at = 0;
+    S.quiz.picks = [];
+    NET.bump('algo.qopen.' + S.lesson);
+    $('quiz-load').hidden = true;
+    $('quiz-main').hidden = false;
+    drawQuiz();
+  }, function(){
+    $('quiz-load-msg').textContent =
+      'いま問題を受け取れません。つながったところで、もう一度この画面を開いてください。';
+  });
+}
+function drawQuiz(){
+  var it = S.quiz.items[S.quiz.at], n = S.quiz.items.length;
+  $('quiz-step').textContent = (S.quiz.at + 1) + ' / ' + n;
+  var d = '';
+  for(var i = 0; i < n; i++){
+    /* ★ クラス名は他とぶつからないものにします。`done` は提出の画面の `.done{flex:1}` に
+       当たって、印が横いっぱいに伸びました（2026-09-24・絵を見て発見）。 */
+    d += '<i class="' + (i < S.quiz.at ? 'qd-past' : (i === S.quiz.at ? 'qd-now' : '')) + '"></i>';
+  }
+  $('quiz-dots').innerHTML = d;
+  $('quiz-text').textContent = it.q;
+  var h = '', MK = 'アイウエオ';
+  for(var k = 0; k < it.a.length; k++){
+    h += '<button class="qopt" data-k="' + k + '">'
+       + '<span class="mk">' + MK.charAt(k) + '</span>'
+       + '<span class="tx">' + esc(it.a[k]) + '</span></button>';
+  }
+  $('quiz-opts').innerHTML = h;
+  $('quiz-next').disabled = (S.quiz.picks[S.quiz.at] === undefined);
+  $('quiz-next').textContent = (S.quiz.at + 1 === n) ? '出す' : 'つぎへ';
+}
+function pickQuiz(k){
+  S.quiz.picks[S.quiz.at] = k;
+  var os = $('quiz-opts').children;
+  for(var i = 0; i < os.length; i++) os[i].classList.toggle('sel', i === k);
+  $('quiz-next').disabled = false;
+  buzz(8);
+}
+function nextQuiz(){
+  if(S.quiz.picks[S.quiz.at] === undefined) return;
+  if(S.quiz.at + 1 < S.quiz.items.length){ S.quiz.at++; drawQuiz(); return; }
+  submitQuiz();
+}
+function submitQuiz(){
+  $('quiz-main').hidden = true;
+  $('quiz-load').hidden = false;
+  $('quiz-load-msg').textContent = '答えを送っています';
+  $('quiz-next').disabled = true;
+  var ids = S.quiz.items.map(function(x){ return x.id; });
+  NET.post('quizSubmit', {
+    code: S.code, lesson: S.lesson, sid: S.sid, token: S.quiz.token,
+    ids: ids, picks: S.quiz.picks, meta: NET.meta({ nonce: S.nonce })
+  }).then(function(res){
+    store('algo.quizdone.' + S.lesson, '1');
+    $('done-h').textContent = '答えを受け付けました';
+    $('done-sub').textContent = '答えは授業で確かめます';
+    paintQuizButton();
+    setSend('ok', 'まとめの問題まで送りました', false);
+    show('done');
+  }, function(){
+    store('algo.quizdone.' + S.lesson, '1');
+    $('done-h').textContent = '答えを預かりました';
+    $('done-sub').textContent = 'つながったときに送ります';
+    paintQuizButton();
+    setSend('ng', 'まだ送れていません。つながったときに送ります', true);
+    show('done');
+  });
 }
 
 /* ------------------------------------------------------------------ 起動 */
@@ -1520,8 +2211,9 @@ function boot(){
   window.addEventListener('resize', setVH);
   window.addEventListener('orientationchange', function(){ setTimeout(setVH, 260); });
   try{ if(window.visualViewport){ window.visualViewport.addEventListener('resize', setVH); } }catch(e){}
-  el.cards = $('cards'); el.idxs = $('idxs'); el.band = $('band'); el.say = $('say');
-  el.fx = $('fx'); el.board = $('board');
+  el.cards = $('cards'); el.band = $('band'); el.say = $('say');
+  el.fx = $('fx'); el.board = $('board'); el.play = document.querySelector('.play');
+  NET.boot();
   initGate();
   $('list-body').addEventListener('click', function(e){
     var t = e.target.closest('.tile');
@@ -1537,8 +2229,8 @@ function boot(){
     var b = e.target.closest('.row');
     if(b && !b.disabled) startLesson(parseInt(b.getAttribute('data-lesson'), 10));
   });
-  $('play-back').addEventListener('click', function(){ buildList(); show('list'); });
-  $('done-back').addEventListener('click', function(){ buildList(); show('list'); });
+  $('play-back').addEventListener('click', leave);
+  $('done-back').addEventListener('click', leave);
   el.cards.addEventListener('click', function(e){
     var b = e.target.closest('.card'); if(!b || b.disabled) return;
     flip(parseInt(b.getAttribute('data-p'), 10));
@@ -1546,19 +2238,43 @@ function boot(){
   [['a-l','L'],['a-r','R'],['a-n','N']].forEach(function(pair){
     $(pair[0]).addEventListener('click', function(){ if(!S.over) choose(pair[1]); });
   });
+  /* 予測の段 */
+  function step(d){
+    var v = $('pred-v');
+    var x = parseInt(String(v.value).replace(/[^0-9]/g, ''), 10);
+    if(isNaN(x)) x = 0;
+    v.value = String(Math.max(0, Math.min(PZ.PMAX, x + d)));
+    FX.bump($('pred-n'));
+  }
+  $('pred-minus').addEventListener('click', function(){ step(-1); });
+  $('pred-plus').addEventListener('click', function(){ step(1); });
+  /* まとめの問題 */
+  $('to-quiz').addEventListener('click', openQuiz);
+  $('quiz-opts').addEventListener('click', function(e){
+    var b = e.target.closest('.qopt'); if(!b) return;
+    pickQuiz(parseInt(b.getAttribute('data-k'), 10));
+  });
+  $('quiz-next').addEventListener('click', nextQuiz);
+  $('send-retry').addEventListener('click', function(){
+    setSend('', '送りなおしています', false);
+    NET.flush().then(function(n){
+      if(NET.pending() === 0) setSend('ok', '記録を送りました', false);
+      else setSend('ng', 'まだ送れません。つながったときに送ります', true);
+    }, function(){ setSend('ng', 'まだ送れません。つながったときに送ります', true); });
+  });
   $('copy').addEventListener('click', function(){
     var t = $('copy');
     function done(){ t.textContent = 'コピーしました'; setTimeout(function(){ t.textContent = 'コードをコピーする'; }, 1800); }
-    try{
-      if(navigator.clipboard && navigator.clipboard.writeText){
-        navigator.clipboard.writeText(S.code).then(done, pick);
-      }else pick();
-    }catch(e){ pick(); }
     function pick(){
       var r = document.createRange(); r.selectNodeContents($('code'));
       var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
       t.textContent = '選んだので、長押しでコピーしてください';
     }
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(S.code).then(done, pick);
+      }else pick();
+    }catch(e){ pick(); }
   });
   window.addEventListener('resize', function(){
     setVH();
